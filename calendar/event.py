@@ -27,17 +27,34 @@ from itools.gettext import MSG
 from itools.web import ERROR, FormError, STLForm, get_context
 
 # Import from ikaaro
+from ikaaro.autoform import DateWidget, SelectWidget, TextWidget
+from ikaaro.autoform import description_widget, title_widget
 from ikaaro.file import File
+from ikaaro.folder import Folder
 from ikaaro import messages
+from ikaaro.registry import register_document_type
+from ikaaro.views_new import NewInstance
 from calendar_views import CalendarView, resolution
+
+
+# FIXME dtstart and dtend must be datetime objects, the problem is we do
+# not have the DateTimeWidget yet.
+
+
+class TodayDataType(Date):
+
+    @classmethod
+    def get_default(cls):
+        return date.today()
 
 
 
 class Status(Enumerate):
 
-    options = [{'name': 'TENTATIVE', 'value': MSG(u'Tentative')},
-               {'name': 'CONFIRMED', 'value': MSG(u'Confirmed')},
-               {'name': 'CANCELLED', 'value': MSG(u'Cancelled')}]
+    options = [
+        {'name': 'TENTATIVE', 'value': MSG(u'Tentative')},
+        {'name': 'CONFIRMED', 'value': MSG(u'Confirmed')},
+        {'name': 'CANCELLED', 'value': MSG(u'Cancelled')}]
 
 
 
@@ -148,62 +165,71 @@ class Event_Edit(CalendarView, STLForm):
 
 
 
-class Event_NewInstance(Event_Edit):
+class Event_NewInstance(NewInstance):
 
-    query_schema = {
-        'date': Date,
-        'start_time': Time,
-        'end_time': Time}
+    query_schema = freeze({
+        'type': String,
+        'title': Unicode,
+        'dtstart': TodayDataType,
+        'dtend': TodayDataType,
+        'description': Unicode,
+        'location': String,
+        'status': Status})
 
+    schema = freeze({
+        'title': Unicode(mandatory=True),
+        'dtstart': TodayDataType(mandatory=True),
+        'dtend': TodayDataType,
+        'description': Unicode,
+        'location': String,
+        'status': Status})
 
-    def get_namespace(self, resource, context):
-        # Get date to add event
-        selected_date = context.query['date']
-        if selected_date is None:
-            message = u'To add an event, click on + symbol from the views.'
-            context.message = ERROR(message)
-            return {}
-
-        # Timetables
-        start_time = context.query['start_time']
-        if start_time:
-            start_time = Time.encode(start_time)
-        end_time = context.query['end_time']
-        if end_time:
-            end_time = Time.encode(end_time)
-
-        # The namespace
-        namespace = {
-            'action': ';new_resource?type=event&date=%s' % selected_date,
-            'dtstart': selected_date,
-            'dtstart_time': start_time,
-            'dtend': selected_date,
-            'dtend_time': end_time,
-            'remove': False,
-            'firstday': self.get_first_day(),
-            'status': Status().get_namespace(None),
-            'allowed': True}
-
-        # Get values
-        for key in self.schema:
-            if key in namespace:
-                continue
-            namespace[key] = context.get_form_value(key)
-
-        return namespace
+    widgets = freeze([
+        title_widget,
+        DateWidget('dtstart', title=MSG(u'Start')),
+        DateWidget('dtend', title=MSG(u'End')),
+        description_widget,
+        TextWidget('location', title=MSG(u'Location')),
+        SelectWidget('status', title=MSG(u'Status'), has_empty_option=False)])
 
 
-    def action_edit_event(self, resource, context, form):
-        # Make event
-        id = resource.get_new_id()
-        event = resource.make_resource(id, Event)
-        # Set properties
-        event.update(form)
-        event.set_property('ORGANIZER', context.user.name)
+    def get_schema(self, resource, context):
+        return self.schema
+
+
+    def get_new_resource_name(self, form):
+        return form['title'].strip()
+
+
+    def action(self, resource, context, form):
+        dtstart = form['dtstart']
+
+        # Get the container, create it if needed
+        container = context.site_root
+        names = [
+            '%04d' % dtstart.year,
+            '%02d' % dtstart.month,
+            '%02d' % dtstart.day]
+        for name in names:
+            folder = container.get_resource(name, soft=True)
+            if folder is None:
+                folder = container.make_resource(name, Folder)
+            container = folder
+
+        # Make the event
+        event_name = form['name']
+        event = container.make_resource(event_name, Event)
+        # The metadata
+        language = resource.get_content_language(context)
+        for name in 'title', 'description':
+            property = Property(form[name], lang=language)
+            event.metadata.set_property(name, property)
+        for name in 'dtstart', 'dtend', 'location', 'status':
+            event.metadata.set_property(name, form[name])
+
         # Ok
-        message = messages.MSG_CHANGES_SAVED
-        goto = ';%s' % context.get_cookie('method') or 'monthly_view'
-        return context.come_back(message, goto=goto)
+        goto = '%s/%s/' % (container.get_abspath(), event_name)
+        return context.come_back(messages.MSG_NEW_RESOURCE, goto=goto)
 
 
 
@@ -358,3 +384,8 @@ class Event(File):
     # Views
     new_instance = Event_NewInstance()
     edit = Event_Edit()
+
+
+
+# Register
+register_document_type(Event)
