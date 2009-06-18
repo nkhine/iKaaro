@@ -30,9 +30,8 @@ from itools.gettext import MSG
 # Import from ikaaro
 from ikaaro.file_views import File_View
 from ikaaro.folder import Folder
-from calendar_views import Calendar_Import, Calendar_Export
-from calendar_views import MonthlyView, TimetablesForm, WeeklyView, DailyView
 from event import Event
+from views import TimetablesForm
 
 
 class Timetables(DataType):
@@ -107,18 +106,6 @@ class Calendar(Folder):
         return [Event]
 
 
-    #######################################################################
-    # User Interface
-    #######################################################################
-    def get_action_url(self, **kw):
-        if 'day' in kw:
-            return ';new_resource?type=event&date=%s' % Date.encode(kw['day'])
-        if 'id' in kw:
-            return '%s/;edit' % kw['id']
-
-        return None
-
-
     # Test if user in context is the organizer of a given event (or is admin)
     def is_organizer_or_admin(self, context, event):
         if self.get_access_control().is_admin(context.user, self):
@@ -189,11 +176,6 @@ class Calendar(Folder):
 
 
     # Views
-    monthly_view = MonthlyView()
-    weekly_view = WeeklyView()
-    daily_view = DailyView()
     edit_timetables = TimetablesForm()
-    export = Calendar_Export()
-    import_ = Calendar_Import()
     export_form = File_View(title=MSG(u'Export'),
                             template='/ui/calendar/export_form.xml')

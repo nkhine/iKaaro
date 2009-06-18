@@ -236,9 +236,17 @@ class CalendarView(STLView):
         return week_number
 
 
+    def get_action_url(self, **kw):
+        if 'day' in kw:
+            return ';new_resource?type=event&date=%s' % Date.encode(kw['day'])
+        if 'id' in kw:
+            return '%s/;edit' % kw['id']
+
+        return None
+
+
     def add_selector_ns(self, c_date, method, namespace):
         """Set header used to navigate into time.
-
         """
         week_number = '%0d' % self.get_week_number(c_date)
         current_week = MSG(u'Week {n}').gettext(n=week_number)
@@ -316,12 +324,6 @@ class CalendarView(STLView):
     ######################################################################
     # Public API
     ######################################################################
-    def get_action_url(self, **kw):
-        """Action to call on form submission.
-        """
-        return None
-
-
     def search(self, query=None, **kw):
         if query is None:
             query = [ PhraseQuery(name, value) for name, value in kw.items() ]
@@ -367,16 +369,15 @@ class CalendarView(STLView):
         Events is a list of events where each one follows:
           (resource_name, dtstart, event)
           'event' object must have a methods:
-              - get_end
-              - get_ns_event.
+              - get_ns_event
         """
+        root = get_context().root
         ns_events = []
         index = 0
         while index < len(events):
             event = events[index]
-            event = resource.get_resource(event.name)
-            e_dtstart = event.get_property('dtstart').date()
-            e_dtend = event.get_property('dtend').date()
+            e_dtstart = event.dtstart.date()
+            e_dtend = event.dtend.date()
             # Current event occurs on current date
             # event begins during current tt
             starts_on = e_dtstart == day
@@ -394,11 +395,12 @@ class CalendarView(STLView):
                     if conflicts:
                         for uids in conflicts:
                             conflicts_list.update(uids)
+                event = root.get_resource(event.abspath)
                 ns_event = event.get_ns_event(day,
                                               conflicts_list=conflicts_list,
                                               grid=grid, starts_on=starts_on,
                                               ends_on=ends_on, out_on=out_on)
-                ns_event['url'] = current_resource.get_action_url(**ns_event)
+                ns_event['url'] = self.get_action_url(**ns_event)
                 ns_event['cal'] = 0
                 if 'resource' in ns_event.keys():
                     ns_event['resource']['color'] = 0
@@ -481,7 +483,7 @@ class MonthlyView(CalendarView):
                     ns_day = {}
                     ns_day['nday'] = day.day
                     ns_day['selected'] = (day == today_date)
-                    ns_day['url'] = resource.get_action_url(day=day)
+                    ns_day['url'] = self.get_action_url(day=day)
                     # Insert events
                     ns_events, events = self.events_to_namespace(resource,
                         events, day)
