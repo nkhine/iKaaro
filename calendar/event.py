@@ -27,7 +27,7 @@ from itools.gettext import MSG
 from itools.web import ERROR, FormError, STLForm, get_context
 
 # Import from ikaaro
-from ikaaro.autoform import DateWidget, SelectWidget, TextWidget
+from ikaaro.autoform import AutoForm, DateWidget, SelectWidget, TextWidget
 from ikaaro.autoform import description_widget, title_widget
 from ikaaro.file import File
 from ikaaro.folder import Folder
@@ -55,113 +55,6 @@ class Status(Enumerate):
         {'name': 'TENTATIVE', 'value': MSG(u'Tentative')},
         {'name': 'CONFIRMED', 'value': MSG(u'Confirmed')},
         {'name': 'CANCELLED', 'value': MSG(u'Cancelled')}]
-
-
-
-class Event_Edit(CalendarView, STLForm):
-
-    access = 'is_allowed_to_edit'
-    title = MSG(u'Edit Event')
-    template = '/ui/calendar/edit_event.xml'
-    schema = {
-        'title': Unicode(mandatory=True),
-        'location': Unicode,
-        'dtstart': Date(mandatory=True),
-        'dtstart_time': Time,
-        'dtend': Date(mandatory=True),
-        'dtend_time': Time,
-        'description': Unicode,
-        'status': Status(mandatory=True)}
-
-
-    def _get_form(self, resource, context):
-        """ Check start is before end.
-        """
-        form = STLForm._get_form(self, resource, context)
-        start_date = form['dtstart']
-        start_time = form.get('dtstart_time', None) or time(0,0)
-        end_date = form['dtend']
-        end_time = form.get('dtend_time', None) or time(23,59)
-        start = datetime.combine(start_date, start_time)
-        end = datetime.combine(end_date, end_time)
-
-        if start > end:
-            msg = ERROR(u'Invalid dates.')
-            raise FormError(msg)
-        return form
-
-
-    def get_namespace(self, resource, context):
-        # Date start
-        start = resource.metadata.get_property('dtstart')
-        param = start.get_parameter('VALUE', '')
-        start_date = Date.encode(start.value)
-        start_time = Time.encode(start.value)[:5] if param != ['DATE'] else None
-        # Date end
-        end = resource.metadata.get_property('dtend')
-        param = end.get_parameter('VALUE', '')
-        end_date = Date.encode(end.value)
-        end_time = Time.encode(end.value)[:5] if param != ['DATE'] else None
-
-        # status is an enumerate
-        status = resource.get_property('status')
-        status = Status().get_namespace(status)
-
-        # Show action buttons only if current user is authorized
-        allowed = resource.parent.is_organizer_or_admin(context, resource)
-
-        # The namespace
-        namespace = {
-            'action': ';edit',
-            'dtstart': start_date,
-            'dtstart_time': start_time,
-            'dtend': end_date,
-            'dtend_time': end_time,
-            'remove': True,
-            'firstday': self.get_first_day(),
-            'status': status,
-            'allowed': allowed}
-
-        # Get values
-        for key in self.schema:
-            if key not in namespace:
-                namespace[key] = resource.get_property(key)
-
-        return namespace
-
-
-    def action_edit_event(self, resource, context, form):
-        # Test if current user is admin or organizer of this event
-        if not resource.parent.is_organizer_or_admin(context, resource):
-            message = ERROR(u'You are not authorized to modify this event.')
-            context.message = message
-            return
-
-        # Update
-        resource.update(form)
-        # Ok
-        context.message = messages.MSG_CHANGES_SAVED
-
-
-    def action_remove_event(self, resource, context, form):
-        # Remove
-        calendar = resource.parent
-        calendar.del_resource(resource.name)
-
-        # Ok
-        method = context.get_cookie('method') or 'monthly_view'
-        if method in dir(calendar):
-            goto = ';%s?%s' % (method, date.today())
-        else:
-            goto = '../;%s?%s' % (method, date.today())
-
-        message = ERROR(u'Event definitely deleted.')
-        return context.come_back(message, goto=goto)
-
-
-    def action_cancel(self, resource, context, form):
-        goto = ';%s' % context.get_cookie('method') or 'monthly_view'
-        return context.come_back(None, goto)
 
 
 
@@ -230,6 +123,61 @@ class Event_NewInstance(NewInstance):
         # Ok
         goto = '%s/%s/' % (container.get_abspath(), event_name)
         return context.come_back(messages.MSG_NEW_RESOURCE, goto=goto)
+
+
+
+class Event_Edit(AutoForm):
+
+    access = 'is_allowed_to_edit'
+    title = MSG(u'Edit event')
+
+
+    schema = freeze({
+        'title': Unicode(mandatory=True),
+        'dtstart': TodayDataType(mandatory=True),
+        'dtend': TodayDataType,
+        'description': Unicode,
+        'location': String,
+        'status': Status})
+
+    widgets = freeze([
+        title_widget,
+        DateWidget('dtstart', title=MSG(u'Start')),
+        DateWidget('dtend', title=MSG(u'End')),
+        description_widget,
+        TextWidget('location', title=MSG(u'Location')),
+        SelectWidget('status', title=MSG(u'Status'), has_empty_option=False)])
+
+
+    def get_value(self, resource, context, name, datatype):
+        return resource.get_property(name)
+
+
+    def _get_form(self, resource, context):
+        """ Check start is before end.
+        """
+        form = AutoForm._get_form(self, resource, context)
+        start_date = form['dtstart']
+        start_time = form.get('dtstart_time', None) or time(0,0)
+        end_date = form['dtend']
+        end_time = form.get('dtend_time', None) or time(23,59)
+        start = datetime.combine(start_date, start_time)
+        end = datetime.combine(end_date, end_time)
+
+        if start > end:
+            msg = ERROR(u'Invalid dates.')
+            raise FormError(msg)
+        return form
+
+
+    def action(self, resource, context, form):
+        # The metadata
+        language = resource.get_content_language(context)
+        for name in 'title', 'description':
+            property = Property(form[name], lang=language)
+            resource.set_property(name, property)
+        for name in 'dtstart', 'dtend', 'location', 'status':
+            resource.set_property(name, form[name])
 
 
 
@@ -336,49 +284,6 @@ class Event(File):
         ns['id'] = id
 
         return ns
-
-
-    def update(self, form):
-        """Return the properties dict, ready to be used by the add or update
-        actions.
-        """
-        # Start
-        dtstart = form['dtstart']
-        dtstart_time = form['dtstart_time']
-        if dtstart_time is None:
-            dtstart = datetime.combine(dtstart, time(0, 0))
-            dtstart = Property(dtstart, VALUE=['DATE'])
-        else:
-            dtstart = datetime.combine(dtstart, dtstart_time)
-            dtstart = Property(dtstart)
-        self.set_property('dtstart', dtstart)
-
-        # End
-        dtend = form['dtend']
-        dtend_time = form['dtend_time']
-        if dtend_time is None:
-            dtend = datetime.combine(dtend, time(0, 0))
-            dtend = dtend + timedelta(days=1) - resolution
-            dtend = Property(dtend, VALUE=['DATE'])
-        else:
-            dtend = datetime.combine(dtend, dtend_time)
-            dtend = Property(dtend)
-        self.set_property('dtend', dtend)
-
-        # Other
-        context = get_context()
-        language = self.get_content_language(context)
-        for key in self.class_schema:
-            if key == 'dtstart' or key == 'dtend':
-                continue
-            value = form.get(key)
-            if value is None:
-                continue
-            datatype = self.class_schema[key]
-            if getattr(datatype, 'multilingual', False):
-                self.set_property(key, Property(value, lang=language))
-            else:
-                self.set_property(key, value)
 
 
     # Views
