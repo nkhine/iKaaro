@@ -251,6 +251,7 @@ class DBResource(CatalogAware, IResource):
         'text': Unicode(indexed=True),
         # Various classifications
         'is_role_aware': Boolean(indexed=True),
+        'is_folder': Boolean(indexed=True),
         'is_image': Boolean(indexed=True),
         })
 
@@ -336,6 +337,7 @@ class DBResource(CatalogAware, IResource):
     def get_catalog_values(self):
         from access import RoleAware
         from file import File, Image
+        from folder import Folder
 
         # Values
         abspath = self.get_canonical_path()
@@ -418,6 +420,7 @@ class DBResource(CatalogAware, IResource):
             'links': self.get_links(),
             'parent_path': parent_path,
             # This should be defined by subclasses
+            'is_folder': isinstance(self, Folder),
             'is_image': isinstance(self, Image),
             'is_role_aware': is_role_aware,
             'users': self.get_members() if is_role_aware else None,
