@@ -92,11 +92,6 @@ class Calendar(Folder):
                   ((19,0),(20,0)), ((20,0),(21,0))]
 
 
-    def get_new_id(self):
-        ids = [ int(x) for x in self.get_names()]
-        return str(max(ids) + 1) if ids else '0'
-
-
     class_schema = merge_dicts(
         Folder.class_schema,
         timetables=Timetables(source='metadata'))
@@ -117,22 +112,6 @@ class Calendar(Folder):
         ac = self.parent.get_access_control()
         return ac.is_allowed_to_edit(context.user, self.parent)
 
-
-    def get_timetables(self):
-        """Build a list of timetables represented as tuples(start, end).
-        Data are taken from metadata or from class value.
-
-        Example of metadata:
-          <timetables>(8,0),(10,0);(10,30),(12,0);(13,30),(17,30)</timetables>
-        """
-        if self.has_property('timetables'):
-            return self.get_property('timetables')
-
-        # From class value
-        timetables = []
-        for index, (start, end) in enumerate(self.timetables):
-            timetables.append((time(start[0], start[1]), time(end[0], end[1])))
-        return timetables
 
 
     def to_ical(self):
