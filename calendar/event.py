@@ -286,13 +286,6 @@ class Event(File):
         return ns
 
 
-    def _get_catalog_values(self):
-        values = File._get_catalog_values(self)
-        values['dtstart'] = self.get_property('dtstart')
-        values['dtend'] = self.get_property('dtend')
-        return values
-
-
     # Views
     new_instance = Event_NewInstance()
     edit = Event_Edit()
