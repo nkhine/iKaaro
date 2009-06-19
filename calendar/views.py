@@ -35,6 +35,7 @@ from itools.xapian import AndQuery, PhraseQuery, RangeQuery
 # Import from ikaaro
 from ikaaro.datatypes import FileDataType
 from ikaaro import messages
+from ikaaro.utils import get_base_path_query
 from grid import get_grid_data
 
 
@@ -236,6 +237,51 @@ class CalendarView(STLView):
         return week_number
 
 
+    def search(self, query=None, **kw):
+        if query is None:
+            query = [ PhraseQuery(name, value) for name, value in kw.items() ]
+        else:
+            query = [query]
+
+        # Search only events
+        query.append(PhraseQuery('format', 'event'))
+
+        # Search only in the site root
+        context = get_context()
+        site_root = context.site_root
+        site_root_path = site_root.get_abspath()
+        if site_root_path != '/':
+            query.append(get_base_path_query(site_root_path))
+
+        # Search
+        query = AndQuery(*query)
+        root = context.root
+        return root.search(query)
+
+
+    def search_events_in_range(self, start, end, **kw):
+        query = [ PhraseQuery(name, value) for name, value in kw.items() ]
+        query = AndQuery(
+            RangeQuery('dtstart', None, end),
+            RangeQuery('dtend', start, None),
+            *query)
+        return self.search(query)
+
+
+    def search_events_in_date(self, date, **kw):
+        """Return a list of Component objects of type 'VEVENT' matching the
+        given date and sorted if requested.
+        """
+        dtstart = datetime(date.year, date.month, date.day)
+        dtend = dtstart + timedelta(days=1) - resolution
+        return self.search_events_in_range(dtstart, dtend, **kw)
+
+
+    def get_events_to_display(self, start, end):
+        events = self.search_events_in_range(start, end)
+        return events.get_documents(sort_by='dtstart')
+
+
     def get_action_url(self, **kw):
         if 'day' in kw:
             url = ';new_resource?type=event&dtstart=%s&dtend=%s'
@@ -326,43 +372,6 @@ class CalendarView(STLView):
     ######################################################################
     # Public API
     ######################################################################
-    def search(self, query=None, **kw):
-        if query is None:
-            query = [ PhraseQuery(name, value) for name, value in kw.items() ]
-        else:
-            query = [query]
-
-        # Search only events
-        query.append(PhraseQuery('format', 'event'))
-        query = AndQuery(*query)
-
-        # Search
-        return get_context().root.search(query)
-
-
-    def search_events_in_range(self, start, end, **kw):
-        query = [ PhraseQuery(name, value) for name, value in kw.items() ]
-        query = AndQuery(
-            RangeQuery('dtstart', None, end),
-            RangeQuery('dtend', start, None),
-            *query)
-        return self.search(query)
-
-
-    def search_events_in_date(self, date, **kw):
-        """Return a list of Component objects of type 'VEVENT' matching the
-        given date and sorted if requested.
-        """
-        dtstart = datetime(date.year, date.month, date.day)
-        dtend = dtstart + timedelta(days=1) - resolution
-        return self.search_events_in_range(dtstart, dtend, **kw)
-
-
-    def get_events_to_display(self, start, end):
-        events = self.search_events_in_range(start, end)
-        return events.get_documents(sort_by='dtstart')
-
-
     def events_to_namespace(self, resource, events, day, grid=False,
                             show_conflicts=False):
         """Build namespace for events occuring on current day.
@@ -648,18 +657,16 @@ class DailyView(CalendarView):
 
     # Get namespace for a resource's lines into daily_view
     def get_ns_calendar(self, calendar, c_date, timetables,
-                        method='daily_view', show_conflicts=False):
+                        show_conflicts=False):
         cal_fields = self.class_cal_fields
         calendar_name = str(calendar.name)
-        args = {'date': Date.encode(c_date), 'method': method}
 
         # Get a dict for each event, compute colspan
         handler = calendar.handler
         events_by_index = {}
         for event in self.search_events_in_date(c_date).get_documents():
-            event = calendar.get_resource(event.name)
-            event_start = event.get_property('dtstart')
-            event_end = event.get_property('dtend')
+            event_start = event.dtstart
+            event_end = event.dtend
             # Compute start and end indexes
             tt_start = 0
             tt_end = len(timetables) - 1
@@ -671,10 +678,10 @@ class DailyView(CalendarView):
                 if end >= event_end:
                     tt_end = tt_index
                     break
-            uid = getattr(event, 'id', getattr(event, 'uid', None))
+            uid = event.abspath
             events_by_index.setdefault(tt_start, [])
             events_by_index[tt_start].append({
-                'title': event.get_property('title'),
+                'title': event.title,
                 'tt_start': tt_start,
                 'tt_end': tt_end,
                 'resource_id': calendar_name,
@@ -695,8 +702,7 @@ class DailyView(CalendarView):
                 if not rows or len(rows) <= row_index:
                     rows.append({'events': []})
                 current_events = rows[row_index]['events']
-                if (current_events
-                        and current_events[-1]['tt_end'] >= index):
+                if current_events and current_events[-1]['tt_end'] >= index:
                     # Overlapping, move on a line of its own
                     rows.append({'events': [event]})
                 else:
@@ -724,9 +730,6 @@ class DailyView(CalendarView):
                 if colspan > 0:
                     colspan = colspan - 1
                     continue
-                tmp_args = args.copy()
-                tmp_args['start_time'] = Time.encode(start)
-                tmp_args['end_time'] = Time.encode(end)
                 # Init column
                 column =  {'class': None,
                            'colspan': 1,
@@ -734,12 +737,7 @@ class DailyView(CalendarView):
                            'evt_url': None}
                 # Add event
                 if event and tt_index == event['tt_start']:
-                    resource_id = event['resource_id']
-                    event_id = event['event_id']
-                    tmp_args = args.copy()
-                    tmp_args['resource'] = resource_id
-                    tmp_args['id'] = event_id
-                    go_url = ';edit_event?%s' % encode_query(tmp_args)
+                    go_url = '%s/;edit' % event['event_id']
                     if show_conflicts and uid in conflicts_list:
                         css_class = 'cal_conflict'
                     else:
@@ -764,8 +762,9 @@ class DailyView(CalendarView):
 
         # Header columns (one line with header and empty cases with only
         # '+' for daily_view)
-        url = ';new_resource?type=event&%s' % encode_query(args)
-        url = get_reference(url).replace(resource=calendar_name)
+        c_date = Date.encode(c_date)
+        url = ';new_resource?type=event&dtstart=%s&dtend=%s' % (c_date, c_date)
+        url = get_reference(url)
         header_columns = [
             url.replace(start_time=Time.encode(x), end_time=Time.encode(y))
             for x, y in timetables ]
@@ -775,7 +774,7 @@ class DailyView(CalendarView):
             'name': calendar.get_title(),
             'rows': rows_namespace,
             'header_columns': header_columns,
-            'url': ';monthly_view?%s' % encode_query(args),
+            'url': ';monthly_view?date=%s' % c_date,
             'rowspan': len(rows) + 1,
         }
 
