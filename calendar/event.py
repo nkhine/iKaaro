@@ -17,12 +17,12 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # Import from the Standard Library
-from datetime import date, datetime, time, timedelta
+from datetime import datetime, time
 
 # Import from itools
 from itools.core import freeze, merge_dicts
 from itools.csv import Property
-from itools.datatypes import Date, DateTime, Enumerate, String, Time, Unicode
+from itools.datatypes import DateTime, Enumerate, String, Time, Unicode
 from itools.gettext import MSG
 from itools.web import ERROR, FormError, STLForm, get_context
 
@@ -33,20 +33,11 @@ from ikaaro.file import File
 from ikaaro.folder import Folder
 from ikaaro import messages
 from ikaaro.registry import register_document_type
-from ikaaro.views_new import NewInstance
-from calendar_views import CalendarView, resolution
+from ikaaro.views_new import NewInstanceByDate, TodayDataType
 
 
 # FIXME dtstart and dtend must be datetime objects, the problem is we do
 # not have the DateTimeWidget yet.
-
-
-class TodayDataType(Date):
-
-    @classmethod
-    def get_default(cls):
-        return date.today()
-
 
 
 class Status(Enumerate):
@@ -58,7 +49,7 @@ class Status(Enumerate):
 
 
 
-class Event_NewInstance(NewInstance):
+class Event_NewInstance(NewInstanceByDate):
 
     query_schema = freeze({
         'type': String,
@@ -86,43 +77,21 @@ class Event_NewInstance(NewInstance):
         SelectWidget('status', title=MSG(u'Status'), has_empty_option=False)])
 
 
-    def get_schema(self, resource, context):
-        return self.schema
+    def get_date(self, context, form):
+        return form['dtstart']
 
 
-    def get_new_resource_name(self, form):
-        return form['title'].strip()
+    def get_resource_class(self, context, form):
+        return Event
 
 
-    def action(self, resource, context, form):
-        dtstart = form['dtstart']
-
-        # Get the container, create it if needed
-        container = context.site_root
-        names = [
-            '%04d' % dtstart.year,
-            '%02d' % dtstart.month,
-            '%02d' % dtstart.day]
-        for name in names:
-            folder = container.get_resource(name, soft=True)
-            if folder is None:
-                folder = container.make_resource(name, Folder)
-            container = folder
-
-        # Make the event
-        event_name = form['name']
-        event = container.make_resource(event_name, Event)
-        # The metadata
+    def modify_resource(self, resource, context, form, child):
         language = resource.get_content_language(context)
         for name in 'title', 'description':
             property = Property(form[name], lang=language)
-            event.metadata.set_property(name, property)
+            child.metadata.set_property(name, property)
         for name in 'dtstart', 'dtend', 'location', 'status':
-            event.metadata.set_property(name, form[name])
-
-        # Ok
-        goto = '%s/%s/' % (container.get_abspath(), event_name)
-        return context.come_back(messages.MSG_NEW_RESOURCE, goto=goto)
+            child.metadata.set_property(name, form[name])
 
 
 
