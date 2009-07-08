@@ -31,7 +31,6 @@ from ikaaro.autoform import AutoForm, DateWidget, SelectWidget, TextWidget
 from ikaaro.autoform import description_widget, title_widget
 from ikaaro.file import File
 from ikaaro.folder import Folder
-from ikaaro import messages
 from ikaaro.registry import register_document_type
 from ikaaro.views_new import NewInstanceByDate, TodayDataType
 

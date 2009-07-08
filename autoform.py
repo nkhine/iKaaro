@@ -19,9 +19,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # Import from itools
-from itools.core import get_abspath, merge_dicts, thingy_lazy_property
+from itools.core import merge_dicts
 from itools.datatypes import DataType, Date, Enumerate, Boolean
-from itools.fs import lfs
 from itools.gettext import MSG
 from itools.html import stream_to_str_as_xhtml, stream_to_str_as_html
 from itools.html import xhtml_doctype, sanitize_stream
@@ -29,11 +28,11 @@ from itools.stl import stl
 from itools.web import STLForm, get_context
 from itools.xml import XMLParser
 
-# Import from ikaaro
-from utils import CMSTemplate
 
 
-
+stl_namespaces = {
+    None: 'http://www.w3.org/1999/xhtml',
+    'stl': 'http://www.hforge.org/xml-namespaces/stl'}
 xhtml_namespaces = {None: 'http://www.w3.org/1999/xhtml'}
 
 
@@ -46,13 +45,14 @@ class XHTMLBody(DataType):
     """
     sanitize_html = True
 
+
+    @classmethod
     def decode(cls, data):
         events = XMLParser(data, namespaces=xhtml_namespaces,
                            doctype=xhtml_doctype)
         if cls.sanitize_html is True:
             events = sanitize_stream(events)
         return list(events)
-
 
     @staticmethod
     def encode(value):
@@ -77,18 +77,9 @@ class HTMLBody(XHTMLBody):
 ###########################################################################
 # Widgets
 ###########################################################################
-
-stl_namespaces = {
-    None: 'http://www.w3.org/1999/xhtml',
-    'stl': 'http://www.hforge.org/xml-namespaces/stl'}
-def make_stl_template(data):
-    return list(XMLParser(data, stl_namespaces))
-
-
-
 def get_default_widget(datatype):
     if issubclass(datatype, Boolean):
-        return RadioWidget
+        return BooleanCheckBox
     elif issubclass(datatype, Date):
         return DateWidget
     elif issubclass(datatype, Enumerate):
@@ -98,24 +89,52 @@ def get_default_widget(datatype):
 
 
 
-class Widget(CMSTemplate):
+class Widget(object):
 
     size = None
     tip = None
     suffix = None
     type = 'text'
 
-    template = make_stl_template("""
-    <input type="${type}" id="${id}" name="${name}" value="${value}"
-      size="${size}" />""")
+    template = list(XMLParser(
+        """<input type="${type}" id="${id}" name="${name}" value="${value}"
+          size="${size}" />""",
+        stl_namespaces))
 
 
-    def __init__(self, name=None, **kw):
-        if name:
-            self.name = name
-        self.id = self.name.replace('_', '-')
+    def __init__(self, name, template=None, template_multiple=None, **kw):
+        self.name = name
+        self.id = name.replace('_', '-')
+        if template is not None:
+            self.template = template
+        if template_multiple is not None:
+            self.template_multiple = template_multiple
         for key in kw:
             setattr(self, key, kw[key])
+
+
+    def get_prefix(self):
+        return None
+
+
+    def get_template(self, datatype, value):
+        return self.template
+
+
+    def get_namespace(self, datatype, value):
+        return {
+            'type': self.type,
+            'name': self.name,
+            'id': self.id,
+            'value': value,
+            'size': self.size}
+
+
+    def to_html(self, datatype, value):
+        template = self.get_template(datatype, value)
+        namespace = self.get_namespace(datatype, value)
+        prefix = self.get_prefix()
+        return stl(events=template, namespace=namespace, prefix=prefix)
 
 
 
@@ -145,170 +164,215 @@ class PasswordWidget(Widget):
 
 class ReadOnlyWidget(Widget):
 
-    template = make_stl_template("""
-    <input type="hidden" id="${id}" name="${name}" value="${value_}" />
-    ${displayed_}""")
-
-    displayed = None
+    template = list(XMLParser(
+        """<input type="hidden" id="${id}" name="${name}" value="${value}" />
+           ${displayed}""", stl_namespaces))
 
 
-    @thingy_lazy_property
-    def value_(self):
-        value = self.value
-        if issubclass(self.datatype, Enumerate) and isinstance(value, list):
+    def get_namespace(self, datatype, value):
+        displayed = getattr(self, 'displayed', None)
+
+        if issubclass(datatype, Enumerate) and isinstance(value, list):
             for option in value:
-                if option['selected']:
-                    return option['name']
-            return self.datatype.default
-        return value
+                if not option['selected']:
+                    continue
+                value = option['name']
+                if displayed is None:
+                    displayed = option['value']
+                break
+            else:
+                value = datatype.default
+                if displayed is None:
+                    displayed = datatype.get_value(value)
 
+        if displayed is None:
+            displayed = value
 
-    def displayed_(self):
-        if self.displayed is not None:
-            return self.displayed
-
-        value = self.value_
-        if issubclass(self.datatype, Enumerate):
-            return self.datatype.get_value(value)
-
-        return value
+        return {
+            'name': self.name,
+            'id': self.id,
+            'value': value,
+            'displayed': displayed}
 
 
 
 class MultilineWidget(Widget):
 
-    template = make_stl_template("""
-    <textarea rows="${rows}" cols="${cols}" id="${id}" name="${name}"
-    >${value}</textarea>""")
-
     rows = 5
     cols = 60
 
+    template = list(XMLParser(
+        """<textarea rows="${rows}" cols="${cols}" id="${id}" name="${name}"
+        >${value}</textarea>""",
+        stl_namespaces))
 
 
-class RadioWidget(Widget):
-
-    template = make_stl_template("""
-    <stl:block stl:repeat="option options">
-      <input type="radio" id="${id}-${option/name}" name="${name}"
-        value="${option/name}" checked="${option/selected}" />
-      <label for="${id}-${option/name}">${option/value}</label>
-      <br stl:if="not oneline" />
-    </stl:block>""")
-
-    oneline = False
-    has_empty_option = True # Only makes sense for enumerates
-                            # FIXME Do this other way
-
-
-    def options(self):
-        datatype = self.datatype
-        value = self.value
-
-        # Case 1: Enumerate
-        if issubclass(datatype, Enumerate):
-            # Check whether the value is already a list of options
-            # FIXME This is done to avoid a bug when using a select widget in
-            # an auto-form, where the 'datatype.get_namespace' method is
-            # called twice (there may be a better way of handling this).
-            if type(value) is not list:
-                options = datatype.get_namespace(value)
-            else:
-                options = value
-
-            # Empty option
-            if self.has_empty_option:
-                options.insert(0,
-                    {'name': '', 'value': '',  'is_selected': False})
-
-            # Select first item if none selected
-            for option in options:
-                if option['selected'] is True:
-                    return options
-
-            if options:
-                options[0]['selected'] = True
-            return options
-
-        # Case 2: Boolean
-        if issubclass(datatype, Boolean):
-            default_labels = {'yes': MSG(u'Yes'), 'no': MSG(u'No')}
-            labels = getattr(self, 'labels', default_labels)
-            return [
-                {'name': '1', 'value': labels['yes'], 'is_selected': value},
-                {'name': '0', 'value': labels['no'], 'is_selected': not value}]
-
-        # Case 3: Error
-        err = 'datatype "%s" should be enumerate or boolean'
-        raise ValueError, err % self.name
+    def get_namespace(self, datatype, value):
+        return {
+            'name': self.name,
+            'id': self.id,
+            'value': value,
+            'rows': self.rows,
+            'cols': self.cols}
 
 
 
-class CheckboxWidget(Widget):
+class CheckBoxWidget(Widget):
 
-    template = make_stl_template("""
-    <stl:block stl:repeat="option options">
-      <input type="checkbox" id="${id}-${option/name}" name="${name}"
-        value="${option/name}" checked="${option/selected}" />
-      <label for="${id}-${option/name}">${option/value}</label>
-      <br stl:if="not oneline" />
-    </stl:block>""")
-
-    oneline = False
+    template = list(XMLParser("""
+        <input type="checkbox" id="${id}" name="${name}" value="${value}"
+          checked="${is_selected}" />
+        """, stl_namespaces))
 
 
-    def options(self):
-        datatype = self.datatype
-        value = self.value
+    def get_namespace(self, datatype, value):
+        return {
+            'name': self.name,
+            'id': self.id,
+            'value': value,
+            'is_selected': getattr(self, 'is_selected', False)}
 
-        # Case 1: Enumerate
-        if issubclass(datatype, Enumerate):
-            # Check whether the value is already a list of options
-            # FIXME This is done to avoid a bug when using a select widget in
-            # an auto-form, where the 'datatype.get_namespace' method is
-            # called twice (there may be a better way of handling this).
-            if type(value) is not list:
-                return datatype.get_namespace(value)
-            return value
 
-        # Case 2: Boolean
-        if issubclass(datatype, Boolean):
-            return [{'name': '1', 'value': '', 'is_selected': value}]
 
-        # Case 3: Error
-        raise ValueError, 'expected boolean or enumerate datatype'
+class BooleanCheckBox(Widget):
+
+    template = list(XMLParser("""
+        <input type="checkbox" id="${id}" name="${name}" value="1"
+          checked="${is_selected}" />
+        """, stl_namespaces))
+
+
+    def get_namespace(self, datatype, value):
+        return {
+            'name': self.name,
+            'id': self.id,
+            'is_selected': value in [True, 1, '1']}
+
+
+
+class BooleanRadio(Widget):
+
+    template = list(XMLParser("""
+        <label for="${id}-yes">${labels/yes}</label>
+        <input id="${id}-yes" name="${name}" type="radio" value="1"
+          checked="checked" stl:if="is_yes"/>
+        <input id="${id}-yes" name="${name}" type="radio" value="1"
+          stl:if="not is_yes"/>
+
+        <label for="${id}-no">${labels/no}</label>
+        <input id="${id}-no" name="${name}" type="radio" value="0"
+          checked="checked" stl:if="not is_yes"/>
+        <input id="${id}-no" name="${name}" type="radio" value="0"
+          stl:if="is_yes"/>
+        """, stl_namespaces))
+
+
+    def get_namespace(self, datatype, value):
+        default_labels = {'yes': MSG(u'Yes'), 'no': MSG(u'No')}
+        labels = getattr(self, 'labels', default_labels)
+        return {
+            'name': self.name,
+            'id': self.id,
+            'is_yes': value in [True, 1, '1'],
+            'labels': labels}
 
 
 
 class SelectWidget(Widget):
 
-    template = make_stl_template("""
-    <select id="${id}" name="${name}" multiple="${multiple}" size="${size}"
-      class="${css}">
-      <option value="" stl:if="has_empty_option"></option>
-      <option stl:repeat="option options" value="${option/name}"
-        selected="${option/selected}">${option/value}</option>
-    </select>""")
+    template = list(XMLParser("""
+        <select id="${id}" name="${name}" multiple="${multiple}" size="${size}"
+            class="${css}">
+          <option value="" stl:if="has_empty_option"></option>
+          <option stl:repeat="option options" value="${option/name}"
+            selected="${option/selected}">${option/value}</option>
+        </select>
+        """, stl_namespaces))
 
 
-    css = None
-    has_empty_option = True
-    size = None
-
-
-    def multiple(self):
-        return self.datatype.multiple
-
-
-    def options(self):
-        value = self.value
+    def get_namespace(self, datatype, value):
         # Check whether the value is already a list of options
         # FIXME This is done to avoid a bug when using a select widget in an
         # auto-form, where the 'datatype.get_namespace' method is called
         # twice (there may be a better way of handling this).
         if type(value) is not list:
-            return self.datatype.get_namespace(value)
-        return value
+            value = datatype.get_namespace(value)
+        return {
+            'css': getattr(self, 'css', None),
+            'has_empty_option': getattr(self, 'has_empty_option', True),
+            'name': self.name,
+            'id': self.id,
+            'multiple': datatype.multiple,
+            'options': value,
+            'size':  getattr(self, 'size', None)}
+
+
+
+class SelectRadio(Widget):
+
+    template = list(XMLParser("""
+        <stl:block stl:if="has_empty_option">
+          <input type="radio" name="${name}" value="" checked="checked"
+            stl:if="none_selected"/>
+          <input type="radio" name="${name}" value=""
+            stl:if="not none_selected"/>
+          <stl:block stl:if="not is_inline"><br/></stl:block>
+        </stl:block>
+        <stl:block stl:repeat="option options">
+          <input type="radio" id="${id}-${option/name}" name="${name}"
+            value="${option/name}" checked="checked"
+            stl:if="option/selected"/>
+          <input type="radio" id="${id}-${option/name}" name="${name}"
+            value="${option/name}" stl:if="not option/selected"/>
+          <label for="${id}-${option/name}">${option/value}</label>
+          <stl:block stl:if="not is_inline"><br/></stl:block>
+        </stl:block>
+        """, stl_namespaces))
+
+    template_multiple = list(XMLParser("""
+        <stl:block stl:repeat="option options">
+          <input type="checkbox" name="${name}" id="${id}-${option/name}"
+            value="${option/name}" checked="${option/selected}" />
+          <label for="${id}-${option/name}">${option/value}</label>
+          <stl:block stl:if="not is_inline"><br/></stl:block>
+        </stl:block>
+        """, stl_namespaces))
+
+
+    def get_template(self, datatype, value):
+        if datatype.multiple:
+            return self.template_multiple
+        return self.template
+
+
+    def get_namespace(self, datatype, value):
+        # Check whether the value is already a list of options
+        # FIXME This is done to avoid a bug when using a select widget in an
+        # auto-form, where the 'datatype.get_namespace' method is called
+        # twice (there may be a better way of handling this).
+        if type(value) is not list:
+            options = datatype.get_namespace(value)
+        else:
+            options = value
+
+        is_inline = getattr(self, 'is_inline', False)
+        has_empty_option = getattr(self, 'has_empty_option', True)
+        for option in options:
+            if option['selected'] is True:
+                none_selected = False
+                break
+        else:
+            # Select first item if no empty option
+            none_selected = True
+            if not has_empty_option and options:
+                options[0]['selected'] = True
+        return {
+            'name': self.name,
+            'id': self.id,
+            'is_inline': is_inline,
+            'has_empty_option': has_empty_option,
+            'none_selected': none_selected,
+            'options': options}
 
 
 
@@ -343,17 +407,17 @@ class DateWidget(Widget):
     def value_(self):
         value = self.value
         if value is None:
-            return ''
+            value = ''
+        format = getattr(self, 'format', '%Y-%m-%d')
+        show_time = getattr(self, 'show_time', False)
+        # True -> true for Javascript
+        show_time = str(show_time).lower()
+        css = getattr(self, 'css', None)
+        size = getattr(self, 'size', None)
 
-        # ['2007-08-01\r\n2007-08-02']
-        if self.datatype.multiple and isinstance(value, list):
-            return value[0]
-
-        return value
-
-
-    def dates(self):
-        return self.value_.splitlines()
+        return {'name': self.name, 'id': self.id,
+                'format': format, 'show_time': show_time,
+                'class': css, 'size': size, 'value': value}
 
 
 
@@ -362,29 +426,38 @@ class PathSelectorWidget(TextWidget):
     action = 'add_link'
     display_workflow = True
 
-    template = make_stl_template("""
+    template = list(XMLParser(
+    """
     <input type="text" id="selector-${id}" size="${size}" name="${name}"
       value="${value}" />
     <input id="selector-button-${id}" type="button" value="..."
       name="selector_button_${name}"
       onclick="popup(';${action}?target_id=selector-${id}&amp;mode=input', 620, 300);"/>
-    ${workflow_state}""")
+    ${workflow_state}
+    """, stl_namespaces))
 
 
     def workflow_state(self):
         from ikaaro.workflow import get_workflow_preview
 
+        workflow_state = None
         if self.display_workflow:
-            value = self.value
+            context = get_context()
             if type(value) is not str:
-                value = self.datatype.encode(value)
+                value = datatype.encode(value)
             if value:
-                context = get_context()
                 resource = context.resource.get_resource(value, soft=True)
                 if resource:
-                    return get_workflow_preview(resource, context)
+                    workflow_state = get_workflow_preview(resource, context)
 
-        return None
+        return {
+            'type': self.type,
+            'name': self.name,
+            'id': self.id,
+            'value': value,
+            'size': self.size,
+            'action': self.action,
+            'workflow_state': workflow_state}
 
 
 
@@ -394,7 +467,8 @@ class ImageSelectorWidget(PathSelectorWidget):
     width = 128
     height = 128
 
-    template = make_stl_template("""
+    template = list(XMLParser(
+    """
     <input type="text" id="selector-${id}" size="${size}" name="${name}"
       value="${value}" />
     <input id="selector-button-${id}" type="button" value="..."
@@ -402,15 +476,23 @@ class ImageSelectorWidget(PathSelectorWidget):
       onclick="popup(';${action}?target_id=selector-${id}&amp;mode=input', 620, 300);" />
     ${workflow_state}
     <br/>
-    <img src="${value}/;thumb?width=${width}&amp;height=${height}" stl:if="value"/>""")
+    <img src="${value}/;thumb?width=${width}&amp;height=${height}" stl:if="value"/>
+    """, stl_namespaces))
+
+
+    def get_namespace(self, datatype, value):
+        return merge_dicts(PathSelectorWidget.get_namespace(self, datatype, value),
+                           width=self.width, height=self.height)
 
 
 
 class RTEWidget(Widget):
 
-    template = '/ui/tiny_mce/rte.xml'
+    template = list(XMLParser("""${rte}""", stl_namespaces))
+
+    rte_template = '/ui/tiny_mce/rte.xml'
     rte_css = ['/ui/aruni/style.css', '/ui/tiny_mce/content.css']
-    scripts = [
+    rte_scripts = [
         '/ui/tiny_mce/tiny_mce_src.js',
         '/ui/tiny_mce/javascript.js']
 
@@ -435,37 +517,62 @@ class RTEWidget(Widget):
     table_styles = None
 
 
-    def language(self):
-        path = get_abspath('ui/tiny_mce/langs')
-        languages = [ x[:-3] for x in lfs.get_names(path) ]
-        return get_context().accept_language.select_language(languages)
+    def get_available_tiny_mce_languages(self, context):
+        here = context.resource
+        dir = here.get_resource('/ui/tiny_mce/langs')
+        return [ lang[:-3] for lang in dir.get_names() ]
 
 
-    def css(self):
-        return ','.join(self.rte_css)
-
-
-    def resizing_js(self):
-        return 'true' if self.resizing else 'false'
+    def get_rte_css(self):
+        return self.rte_css
 
 
     def get_prefix(self):
         context = get_context()
         here = context.resource.get_abspath()
-        prefix = here.get_pathto(self.template)
+        prefix = here.get_pathto(self.rte_template)
         return prefix
 
 
-    def render(self):
-        prefix = self.get_prefix()
-        template = self.get_template()
-        return stl(events=template, namespace=self, prefix=prefix)
+    def get_template(self, datatype, value):
+        context = get_context()
+        handler = context.root.get_resource(self.rte_template)
+        return handler.events
 
+
+    def get_namespace(self, datatype, value):
+        context = get_context()
+        # language
+        site_root = context.site_root
+        tiny_mce_languages = self.get_available_tiny_mce_languages(context)
+        accept = context.accept_language
+        current_language = accept.select_language(tiny_mce_languages)
+        # configuration
+        resizing = 'true' if self.resizing else 'false'
+
+        css_names = self.get_rte_css()
+        return {'advanced_styles': self.advanced_styles,
+                'css': ','.join(css_names),
+                'extended_valid_elements': self.extended_valid_elements,
+                'form_name': self.name,
+                'id': self.id,
+                'height': self.height,
+                'language': current_language,
+                'plugins': self.plugins,
+                'resizing': resizing,
+                'scripts': self.rte_scripts,
+                'source': value,
+                'table_styles': self.table_styles,
+                'toolbar1': self.toolbar1,
+                'toolbar2': self.toolbar2,
+                'toolbar3': self.toolbar3,
+                'width': self.width}
 
 
 ###########################################################################
 # Common widgets to reuse
 ###########################################################################
+name_widget = TextWidget('name', title=MSG(u'Name'), default='')
 title_widget = TextWidget('title', title=MSG(u'Title'))
 description_widget = MultilineWidget('description',
                                      title=MSG(u'Description'), rows=8)
@@ -492,10 +599,10 @@ class AutoForm(STLForm):
     """
 
     widgets = []
+    required_msg = None
     template = '/ui/auto_form.xml'
     submit_value = MSG(u'Save')
     submit_class = 'button-ok'
-    description = None
 
 
     def get_widgets(self, resource, context):
@@ -510,28 +617,43 @@ class AutoForm(STLForm):
         fields = self.get_schema(resource, context)
         widgets = self.get_widgets(resource, context)
 
+        # Set and translate the required_msg
+        required_msg = self.required_msg
+        if required_msg is None:
+            required_msg = MSG(
+                u'The <span class="field-is-required">emphasized</span> fields'
+                u' are required.')
+        required_msg = required_msg.gettext()
+        required_msg = required_msg.encode('utf-8')
+        required_msg = XMLParser(required_msg)
+
         # Build widgets namespace
+        has_required_widget = False
         ns_widgets = []
         for widget in widgets:
             datatype = fields[widget.name]
+            is_mandatory = getattr(datatype, 'mandatory', False)
+            if is_mandatory:
+                has_required_widget = True
             widget_namespace = widgets_namespace[widget.name]
             value = widget_namespace['value']
             widget_namespace['title'] = getattr(widget, 'title', None)
-            is_mandatory = getattr(datatype, 'mandatory', False)
             widget_namespace['mandatory'] = is_mandatory
+            widget_namespace['multiple'] = datatype.multiple
             widget_namespace['is_date'] = issubclass(datatype, Date)
             widget_namespace['tip'] = widget.tip
-            widget = widget(datatype=datatype, value=value)
-            widget_namespace['widget'] = widget.render()
+            widget_namespace['suffix'] = widget.suffix
+            widget_namespace['widget'] = widget.to_html(datatype, value)
             ns_widgets.append(widget_namespace)
 
         # Build namespace
         return {
             'title': self.get_title(context),
-            'description': self.description,
+            'required_msg': required_msg,
             'first_widget': widgets[0].name,
             'action': context.uri,
             'submit_value': self.submit_value,
             'submit_class': self.submit_class,
-            'widgets': ns_widgets}
-
+            'widgets': ns_widgets,
+            'has_required_widget': has_required_widget,
+            }
