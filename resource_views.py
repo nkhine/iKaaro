@@ -26,12 +26,11 @@ from operator import itemgetter
 # Import from itools
 from itools.core import merge_dicts
 from itools.datatypes import DateTime, String, Unicode
+from itools.fs import FileName
 from itools.gettext import MSG
 from itools.handlers import checkid
-from itools.http import Conflict
 from itools.i18n import get_language_name
 from itools.uri import Path, get_reference, get_uri_path
-from itools.fs import FileName
 from itools.web import BaseView, STLForm, INFO, ERROR
 from itools.xapian import PhraseQuery
 
@@ -39,7 +38,6 @@ from itools.xapian import PhraseQuery
 from autoform import AutoForm, title_widget, description_widget, subject_widget
 from autoform import timestamp_widget
 from datatypes import FileDataType, CopyCookie
-from exceptions import ConsistencyError
 from folder_views import Folder_BrowseContent
 import messages
 from registry import get_resource_class
@@ -565,43 +563,3 @@ class LogoutView(BaseView):
 
         message = INFO(u'You Are Now Logged out.')
         return context.come_back(message, goto='./')
-
-
-
-###########################################################################
-# Views / HTTP, WebDAV
-###########################################################################
-
-class Put_View(BaseView):
-
-    access = 'is_allowed_to_put'
-
-
-    def PUT(self, resource, context):
-        body = context.get_form_value('body')
-        resource.handler.load_state_from_string(body)
-        context.database.change_resource(resource)
-
-
-
-class Delete_View(BaseView):
-
-    access = 'is_allowed_to_remove'
-
-
-    def DELETE(self, resource, context):
-        name = resource.name
-        parent = resource.parent
-        try:
-            parent.del_resource(name)
-        except ConsistencyError:
-            raise Conflict
-
-        # Clean the copy cookie if needed
-        cut, paths = context.get_cookie('ikaaro_cp', datatype=CopyCookie)
-        # Clean cookie
-        if str(resource.get_abspath()) in paths:
-            context.del_cookie('ikaaro_cp')
-            paths = []
-
-

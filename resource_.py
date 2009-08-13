@@ -34,7 +34,6 @@ from registry import register_field, register_resource_class
 from resource_views import DBResource_Edit, DBResource_Backlinks
 from resource_views import DBResource_AddImage, DBResource_AddLink
 from resource_views import DBResource_AddMedia, LoginView, LogoutView
-from resource_views import Put_View, Delete_View
 from revisions_views import DBResource_CommitLog, DBResource_Changes
 from workflow import WorkflowAware
 from views_new import NewInstance
@@ -581,6 +580,4 @@ class DBResource(CatalogAware, IResource):
     commit_log = DBResource_CommitLog()
     changes = DBResource_Changes()
     backlinks = DBResource_Backlinks()
-    http_put = Put_View()
-    http_delete = Delete_View()
 
