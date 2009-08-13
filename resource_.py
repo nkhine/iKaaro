@@ -23,9 +23,10 @@
 from itools.core import freeze
 from itools.csv import Property
 from itools.datatypes import Unicode, String, Integer, Boolean, DateTime
+from itools.http import get_context
 from itools.log import log_error
 from itools.uri import Path
-from itools.web import Resource, get_context
+from itools.web import Resource
 from itools.xapian import CatalogAware, PhraseQuery
 
 # Import from ikaaro
