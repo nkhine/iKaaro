@@ -37,12 +37,11 @@ from glib import GError
 # Import from itools
 from itools.datatypes import Boolean
 from itools.fs import vfs, lfs
-from itools.http import SoupMessage
+from itools.http import SoupMessage, set_context
 from itools.log import Logger, register_logger
 from itools.log import DEBUG, INFO, WARNING, ERROR, FATAL
 from itools.log import log_error, log_warning, log_info
-from itools.uri import get_host_from_authority
-from itools.web import WebServer, WebLogger, Context, set_context
+from itools.web import WebServer, WebLogger, Context
 
 # Import from ikaaro
 from config import get_config
@@ -151,7 +150,7 @@ class Server(WebServer):
 
         # Initialize
         access_log = '%s/log/access' % target
-        WebServer.__init__(self, root, access_log=access_log)
+        WebServer.__init__(self, access_log=access_log)
 
         # Email service
         self.spool = lfs.resolve2(self.target, 'spool')
