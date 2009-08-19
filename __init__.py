@@ -52,9 +52,7 @@ import calendar
 import tracker
 
 
-###########################################################################
 # Check for required software
-###########################################################################
 for name, import_path, reason in [
         ("poppler", "itools.pdf.pdftotext", "PDF indexation"),
         ("wv2", "itools.office.doctotext", "DOC indexation"),
