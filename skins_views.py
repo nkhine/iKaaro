@@ -34,15 +34,15 @@ from utils import CMSTemplate, reduce_string
 ###########################################################################
 class LanguagesTemplate(CMSTemplate):
 
-    template = '/ui/aruni/languages.xml'
+    template = 'aruni/languages.xml'
 
 
     @thingy_lazy_property
     def languages(self):
         context = self.context
         # Website languages
-        site_root = context.site_root
-        ws_languages = site_root.get_property('website_languages')
+        host = context.host
+        ws_languages = host.get_property('website_languages')
         if len(ws_languages) == 1:
             return []
 
@@ -72,18 +72,18 @@ class LanguagesTemplate(CMSTemplate):
 ###########################################################################
 class LocationTemplate(CMSTemplate):
 
-    template = '/ui/aruni/location.xml'
+    template = 'aruni/location.xml'
 
     @thingy_lazy_property
     def breadcrumb(self):
         """Return a list of dicts [{name, url}...]
         """
         context = self.context
-        site_root = context.site_root
+        host = context.host
 
         # Initialize the breadcrumb with the root resource
         path = '/'
-        title = site_root.get_title()
+        title = host.get_title()
         breadcrumb = [{
             'url': path,
             'name': title,
@@ -91,8 +91,8 @@ class LocationTemplate(CMSTemplate):
             }]
 
         # Complete the breadcrumb
-        resource = site_root
-        for name in context.uri.path:
+        resource = host
+        for name in context.path:
             path = path + ('%s/' % name)
             resource = resource.get_resource(name, soft=True)
             if resource is None:

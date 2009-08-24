@@ -52,7 +52,7 @@ class NotFoundView(STLView):
 
 
 class ForbiddenView(STLView):
-    template = '/ui/root/forbidden.xml'
+    template = 'root/forbidden.xml'
 
     def POST(self, resource, context):
         return self.GET
@@ -351,7 +351,7 @@ class AboutView(STLView):
 
     access = True
     title = MSG(u'About')
-    template = '/ui/root/about.xml'
+    template = 'root/about.xml'
 
 
     def get_namespace(self, resource, context):
