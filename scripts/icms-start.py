@@ -27,7 +27,7 @@ from itools.core import become_daemon, start_subprocess
 from itools.loop import Loop
 
 # Import from ikaaro
-from ikaaro.bootstrap import get_server
+from ikaaro.boot import get_server
 from ikaaro.config import get_config
 from ikaaro.database import check_database
 from ikaaro.utils import is_instance_up_to_date

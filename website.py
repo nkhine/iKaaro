@@ -36,7 +36,6 @@ from folder import Folder
 from registry import register_document_type
 from resource_views import LoginView
 from skins import Skin
-from ui import UI, ui_path
 from website_views import AboutView, ContactForm, CreditsView
 from website_views import ForgottenPasswordForm, RegisterForm
 from website_views import SiteSearchView, NotFoundView, ForbiddenView
@@ -65,9 +64,6 @@ class WebSite(RoleAware, Folder, VirtualRoot):
 
 
     def _get_resource(self, name):
-        if name == 'ui':
-            ui = UI(ui_path)
-            return ui
         if name in ('users', 'users.metadata'):
             return self.parent._get_resource(name)
         return Folder._get_resource(self, name)
