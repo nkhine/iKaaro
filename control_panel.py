@@ -24,6 +24,7 @@ from operator import itemgetter
 # Import from itools
 from itools.datatypes import Boolean, Enumerate, String, Unicode
 from itools.gettext import MSG
+from itools.http import get_context
 from itools.i18n import get_language_name, get_languages
 from itools.uri import Path
 from itools.web import STLView, STLForm, INFO, ERROR
@@ -57,7 +58,7 @@ class ControlPanelMenu(ContextMenu):
             view = resource.get_view(name)
             if view is None:
                 continue
-            if not resource.is_access_allowed(user, resource, view):
+            if not resource.is_access_allowed(context, resource, view):
                 continue
             items.append({
                 'title': view.title,
@@ -87,7 +88,7 @@ class ControlPanel(IconsView):
             view = resource.get_view(name)
             if view is None:
                 continue
-            if not resource.is_access_allowed(context.user, resource, view):
+            if not resource.is_access_allowed(context, resource, view):
                 continue
             items.append({
                 'icon': resource.get_method_icon(view, size='48x48'),
@@ -108,7 +109,7 @@ class CPEditVirtualHosts(STLForm):
     title = MSG(u'Virtual Hosts')
     icon = 'website.png'
     description = MSG(u'Define the domain names for this Web Site.')
-    template = '/ui/website/virtual_hosts.xml'
+    template = 'website/virtual_hosts.xml'
     context_menus = context_menus
     schema = {
         'vhosts': String}
@@ -136,7 +137,7 @@ class CPEditSecurityPolicy(STLForm):
     title = MSG(u'Security Policy')
     icon = 'lock.png'
     description = MSG(u'Choose the security policy.')
-    template = '/ui/website/security_policy.xml'
+    template = 'website/security_policy.xml'
     context_menus = context_menus
     schema = {
         'website_is_open': Boolean(default=False)}
@@ -163,9 +164,8 @@ class ContactsOptions(Enumerate):
     def get_options(cls):
         options = []
         resource = cls.resource
-        users = resource.get_resource('/users')
         for user_name in resource.get_members():
-            user = users.get_resource(user_name, soft=True)
+            user = get_context().get_user_by_name(user_name)
             if user is None:
                 continue
             user_title = user.get_title()
@@ -281,7 +281,7 @@ class CPEditLanguages(STLForm):
     title = MSG(u'Languages')
     description = MSG(u'Define the Web Site languages.')
     icon = 'languages.png'
-    template = '/ui/website/edit_languages.xml'
+    template = 'website/edit_languages.xml'
     context_menus = context_menus
     schema = {
         'codes': String(multiple=True, mandatory=True)}
