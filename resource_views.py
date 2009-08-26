@@ -56,7 +56,7 @@ class EditLanguageMenu(ContextMenu):
 
         site_root = self.resource.get_site_root()
         languages = site_root.get_property('website_languages')
-        uri = self.context.uri
+        uri = get_reference(self.context.uri)
         return [
             {'title': get_language_name(x),
              'href': uri.replace(content_language=x),
