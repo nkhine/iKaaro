@@ -41,8 +41,8 @@ class LanguagesTemplate(CMSTemplate):
     def languages(self):
         context = self.context
         # Website languages
-        host = context.host
-        ws_languages = host.get_property('website_languages')
+        root = context.get_resource('/')
+        ws_languages = root.get_property('website_languages')
         if len(ws_languages) == 1:
             return []
 
@@ -79,11 +79,11 @@ class LocationTemplate(CMSTemplate):
         """Return a list of dicts [{name, url}...]
         """
         context = self.context
-        host = context.host
+        root = context.get_resource('/')
 
         # Initialize the breadcrumb with the root resource
         path = '/'
-        title = host.get_title()
+        title = root.get_title()
         breadcrumb = [{
             'url': path,
             'name': title,
@@ -91,7 +91,7 @@ class LocationTemplate(CMSTemplate):
             }]
 
         # Complete the breadcrumb
-        resource = host
+        resource = root
         for name in context.path:
             path = path + ('%s/' % name)
             resource = resource.get_resource(name, soft=True)
@@ -102,8 +102,7 @@ class LocationTemplate(CMSTemplate):
             breadcrumb.append({
                 'url': path,
                 'name': title,
-                'short_name': reduce_string(title, 15, 30),
-            })
+                'short_name': reduce_string(title, 15, 30)})
 
         return breadcrumb
 
