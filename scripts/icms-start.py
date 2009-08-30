@@ -31,7 +31,7 @@ from ikaaro.boot import get_server
 from ikaaro.config import get_config
 from ikaaro.database import check_database
 from ikaaro.utils import is_instance_up_to_date
-from ikaaro.server import get_pid, get_fake_context
+from ikaaro.server import get_pid
 
 
 def start(options, target):
@@ -49,7 +49,7 @@ def start(options, target):
     server = get_server(target, read_only=options.read_only)
 
     # Check instance is up to date
-    context = get_fake_context()
+    context = server.get_mount('/').get_fake_context()
     if not is_instance_up_to_date(target):
         print 'The instance is not up-to-date, please type:'
         print
