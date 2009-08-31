@@ -222,11 +222,7 @@ class DBResource(CatalogAware, IResource):
         if self._handler is None:
             cls = self.class_handler
             database = self.metadata.database
-            fs = database.fs
-            if self.parent is None:
-                key = fs.resolve(self.metadata.key, '.')
-            else:
-                key = fs.resolve(self.metadata.key, self.name)
+            key = self.metadata.key[:-len('.metadata')]
             if database.has_handler(key):
                 handler = database.get_handler(key, cls=cls)
             else:
@@ -398,11 +394,11 @@ class DBResource(CatalogAware, IResource):
 #               server.event_log.flush()
 
         # Parent path
-        parent_path = None
-        abspath_str = str(abspath)
-        if abspath_str != '/':
-            parent_path = abspath.resolve2('..')
-            parent_path = str(parent_path)
+        if abspath == '/':
+            parent_path = None
+        else:
+            i = abspath.rfind('/') + 1
+            parent_path = abspath[:i]
 
         # Size
         if isinstance(self, File):
@@ -426,7 +422,7 @@ class DBResource(CatalogAware, IResource):
         # Ok
         return {
             'name': self.name,
-            'abspath': abspath_str,
+            'abspath': abspath,
             'format': self.metadata.format,
             'mtime': self.get_property('mtime'),
             'last_author': self.get_property('last_author'),
