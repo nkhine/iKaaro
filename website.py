@@ -79,10 +79,9 @@ class WebSite(RoleAware, Folder, VirtualRoot):
         captcha_answer=Unicode(source='metadata', default=u"5"))
 
 
-    def get_catalog_values(self):
-        values = Folder.get_catalog_values(self)
-        values['vhosts'] = self.get_property('vhosts')
-        return values
+    @property
+    def vhosts(self):
+        return self.get_property('vhosts')
 
 
     ########################################################################

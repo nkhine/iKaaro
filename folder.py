@@ -92,6 +92,21 @@ class Folder(DBResource):
         return resource
 
 
+    ########################################################################
+    # Indexing
+    ########################################################################
+    is_folder = True
+
+
+    @property
+    def size(self):
+        names = self.get_names()
+        return len(names)
+
+
+    ########################################################################
+    # Cut & Paste Resources
+    ########################################################################
     def can_paste(self, source):
         """Is the source resource can be pasted into myself.
         """

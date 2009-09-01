@@ -110,6 +110,17 @@ class WorkflowAware(BaseWorkflowAware):
         })
 
 
+    ########################################################################
+    # Indexing
+    ########################################################################
+    @property
+    def workflow_state(self):
+        return self.get_workflow_state()
+
+
+    ########################################################################
+    # API
+    ########################################################################
     def get_workflow_state(self):
         state = self.get_property('state')
         if state:
