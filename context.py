@@ -25,7 +25,7 @@ from itools.xapian import OrQuery, PhraseQuery, StartQuery
 from ikaaro.globals import spool, ui
 from folder import Folder
 from metadata import Metadata
-from registry import get_resource_class, fields_registry
+from registry import get_resource_class
 
 
 class CMSContext(WebContext):
@@ -439,8 +439,7 @@ class CMSContext(WebContext):
             if git_date:
                 resource.metadata.set_property('mtime', git_date)
                 resource.metadata.set_property('last_author', userid)
-            values = resource.get_catalog_values()
-            docs_to_index.append((resource, values))
+            docs_to_index.append(resource)
         self.cache_new2old.clear()
 
         # 4. Find out commit author & message
