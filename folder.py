@@ -104,9 +104,21 @@ class Folder(DBResource):
         return len(names)
 
 
-    ########################################################################
-    # Cut & Paste Resources
-    ########################################################################
+    #######################################################################
+    # API
+    #######################################################################
+    def make_resource(self, name, cls, **kw):
+        # Make the metadata
+        metadata = Metadata(cls=cls)
+        self.handler.set_handler('%s.metadata' % name, metadata)
+        # Initialize
+        resource = self.get_resource(name)
+        resource.init_resource(**kw)
+        # Ok
+        get_context().add_resource(resource)
+        return resource
+
+
     def can_paste(self, source):
         """Is the source resource can be pasted into myself.
         """
