@@ -113,8 +113,9 @@ class File_NewInstance(NewInstance):
         child.metadata.set_property('title', title)
 
         # Ok
-        goto = './%s/' % name
-        return context.come_back(messages.MSG_NEW_RESOURCE, goto=goto)
+        context.message = messages.MSG_NEW_RESOURCE
+        location = str(child.path)
+        context.created(location)
 
 
 
@@ -131,7 +132,6 @@ class File_Download(BaseView):
     def http_get(self, resource, context):
         # Content-Type
         content_type = resource.get_content_type()
-        context.set_content_type(content_type)
         # Content-Disposition
         disposition = 'inline'
         if content_type.startswith('application/vnd.oasis.opendocument.'):
@@ -139,7 +139,8 @@ class File_Download(BaseView):
         filename = resource.get_property('filename')
         context.set_content_disposition(disposition, filename)
         # Ok
-        return resource.handler.to_str()
+        body = resource.handler.to_str()
+        context.ok(content_type, body)
 
 
 
@@ -182,26 +183,24 @@ class File_Edit(DBResource_Edit):
                                          datatype)
 
 
-    def action(self, resource, context, form):
-        DBResource_Edit.action(self, resource, context, form)
-        if context.edit_conflict:
+    def set_value(self, resource, context, name, value):
+        # 1. State
+        if name == 'state':
+            if value:
+                try:
+                    resource.do_trans(value)
+                except WorkflowError, excp:
+                    log_error('Transition failed', domain='ikaaro')
+                    context.message = ERROR(unicode(excp.message, 'utf-8'))
             return
 
-        # State
-        transition = form['state']
-        if transition:
-            try:
-                resource.do_trans(transition)
-            except WorkflowError, excp:
-                log_error('Transition failed', domain='ikaaro')
-                context.message = ERROR(unicode(excp.message, 'utf-8'))
-                return
+        # 2. Something else
+        if name != 'file':
+            return DBResource_Edit.set_value(self, resource, context, name,
+                                             value)
 
-        # Upload file
-        file = form['file']
-        if file is None:
-            return
-        filename, mimetype, body = file
+        # 3. File
+        filename, mimetype, body = value
 
         # Check wether the handler is able to deal with the uploaded file
         handler = resource.handler
@@ -239,10 +238,6 @@ class File_Edit(DBResource_Edit):
             folder = resource.parent.handler
             filename = FileName.encode((old_name, new_extension, old_lang))
             folder.move_handler(handler_name, filename)
-
-        # Ok
-        context.database.change_resource(resource)
-        context.message = INFO(u'Version uploaded')
 
 
 
