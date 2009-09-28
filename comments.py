@@ -88,16 +88,13 @@ class CommentsView(STLView):
     template = '/ui/comments.xml'
 
     def get_namespace(self, resource, context):
-        root = context.root
-
-
         comments = resource.metadata.get_property('comment')
         if comments is None:
             comments = []
         else:
             comments = [
                 {'number': i,
-                 'user': root.get_user_title(x.parameters['author']),
+                 'user': context.get_user_title(x.parameters['author']),
                  'datetime': format_datetime(x.parameters['date']),
                  'comment': indent(x.value),
                  'file': x.parameters.get('file')}

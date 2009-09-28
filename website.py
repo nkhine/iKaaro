@@ -79,16 +79,11 @@ class WebSite(RoleAware, Folder, VirtualRoot):
         captcha_answer=Unicode(source='metadata', default=u"5"))
 
 
-    @property
-    def vhosts(self):
-        return self.get_property('vhosts')
-
-
     ########################################################################
     # API
     ########################################################################
     def get_default_language(self):
-        return self.get_property('website_languages')[0]
+        return self.get_value('website_languages')[0]
 
 
     def is_allowed_to_register(self, user, resource):

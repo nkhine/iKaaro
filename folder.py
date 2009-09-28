@@ -94,11 +94,11 @@ class Folder(DBResource):
     ########################################################################
     # Indexing
     ########################################################################
-    is_folder = True
+    def get_is_folder(self):
+        return True
 
 
-    @property
-    def size(self):
+    def get_size(self):
         names = self.get_names()
         return len(names)
 
@@ -157,13 +157,13 @@ class Folder(DBResource):
 
 
     def del_resource(self, name, soft=False):
-        database = get_context().database
+        context = get_context()
         resource = self.get_resource(name, soft=soft)
         if soft and resource is None:
             return
 
         # Check referencial-integrity
-        catalog = database.catalog
+        catalog = context.database.catalog
         # FIXME Check sub-resources too
         path = str(resource.get_canonical_path())
         query_base_path = get_base_path_query(path)
@@ -175,7 +175,7 @@ class Folder(DBResource):
             raise ConsistencyError, message
 
         # Events, remove
-        database.remove_resource(resource)
+        context.remove_resource(resource)
         # Remove
         fs = database.fs
         for handler in resource.get_handlers():

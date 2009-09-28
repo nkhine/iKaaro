@@ -110,14 +110,19 @@ class WorkflowAware(BaseWorkflowAware):
         })
 
 
-    @property
-    def workflow_state(self):
-        return self.get_property('state') or self.workflow.initstate
+    def get_workflow_state(self):
+        state = self.get_property('state')
+        if state:
+            return state.value
+        return self.workflow.initstate
 
 
-    @workflow_state.setter
-    def workflow_state(self, value):
+    def set_workflow_state(self, value):
         self.set_property('state', value)
+
+
+    # XXX itools.workflow API
+    workflow_state = property(get_workflow_state)
 
 
 

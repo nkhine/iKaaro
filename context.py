@@ -19,7 +19,7 @@ from itools.core import get_abspath, lazy, merge_dicts
 from itools.handlers import ConfigFile, ro_database
 from itools.uri import Path
 from itools.web import WebContext, lock_body
-from itools.xapian import OrQuery, PhraseQuery, StartQuery
+from itools.xapian import OrQuery, PhraseQuery, StartQuery, SearchResults
 
 # Import from ikaaro
 from ikaaro.globals import spool, ui
@@ -193,7 +193,7 @@ class CMSContext(WebContext):
         lock = resource.lock()
 
         self.set_header('Lock-Token', 'opaquelocktoken:%s' % lock)
-        body = lock_body % {'owner': self.user.name, 'locktoken': lock}
+        body = lock_body % {'owner': self.user.get_name(), 'locktoken': lock}
         self.ok('text/xml; charset="utf-8"', body)
 
 
@@ -222,7 +222,7 @@ class CMSContext(WebContext):
         if n == 0:
             return None
 
-        documents = results.get_documents()
+        documents = SearchResults.get_documents(results)
         return documents[0].name
 
 
@@ -427,7 +427,7 @@ class CMSContext(WebContext):
         # 3. Index
         git_date = self.timestamp
         user = self.user
-        userid = user.name if user else None
+        userid = user.get_name() if user else None
         for path in self.cache_new2old:
             resource = cache[path]
             if git_date:
@@ -439,7 +439,7 @@ class CMSContext(WebContext):
         # 4. Find out commit author & message
         git_msg = 'no comment'
         git_author = (
-            '%s <%s>' % (userid, user.get_property('email'))
+            '%s <%s>' % (userid, user.get_value('email'))
             if user else 'nobody <>')
         git_msg = getattr(self, 'git_message', None)
         git_msg = (

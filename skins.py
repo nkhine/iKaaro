@@ -141,7 +141,7 @@ class Skin(STLForm):
         meta = []
         # Set description
         try:
-            property = here._get_property('description')
+            property = here.get_property('description')
         except ValueError:
             pass
         else:
@@ -152,9 +152,9 @@ class Skin(STLForm):
                     'content': property.value})
 
         # Set keywords for all languages
-        for language in root.get_property('website_languages'):
+        for language in root.get_value('website_languages'):
             try:
-                value = here.get_property('subject', language)
+                value = here.get_value('subject', language)
             except ValueError:
                 continue
             if value is None:
@@ -197,9 +197,9 @@ class Skin(STLForm):
             joinisopen = root.is_allowed_to_register(user, root)
             return {'info': None, 'joinisopen': joinisopen}
 
-        home = '/users/%s' % user.name
-        info = {'name': user.name, 'title': user.get_title(),
-                'home': home}
+        username = user.get_name()
+        home = '/users/%s' % username
+        info = {'name': username, 'title': user.get_title(), 'home': home}
         return {'info': info, 'joinisopen': False}
 
 
@@ -282,7 +282,7 @@ class Skin(STLForm):
 
         # The document language
         here = context.resource
-        languages = here.get_site_root().get_property('website_languages')
+        languages = here.get_site_root().get_value('website_languages')
         language = context.accept_language.select_language(languages)
 
         # The base URI
