@@ -397,9 +397,6 @@ class RoleAware(AccessControl):
         return [ '/users/%s' % x for x in self.get_members() ]
 
 
-    #########################################################################
-    # Indexing
-    #########################################################################
     is_role_aware = True
 
 

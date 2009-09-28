@@ -110,27 +110,14 @@ class WorkflowAware(BaseWorkflowAware):
         })
 
 
-    ########################################################################
-    # Indexing
-    ########################################################################
     @property
     def workflow_state(self):
-        return self.get_workflow_state()
+        return self.get_property('state') or self.workflow.initstate
 
 
-    ########################################################################
-    # API
-    ########################################################################
-    def get_workflow_state(self):
-        state = self.get_property('state')
-        if state:
-            return state
-        return self.workflow.initstate
-
-    def set_workflow_state(self, value):
+    @workflow_state.setter
+    def workflow_state(self, value):
         self.set_property('state', value)
-
-    workflow_state = property(get_workflow_state, set_workflow_state, None, '')
 
 
 
