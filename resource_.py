@@ -279,7 +279,7 @@ class DBResource(CatalogAware, IResource):
 
 
     def del_property(self, name):
-        get_context().database.change_resource(self)
+        get_context().change_resource(self)
         self.metadata.del_property(name)
 
 

@@ -896,7 +896,7 @@ class Tracker_ChangeSeveralBugs(Tracker_View):
             if assigned_to and assigned_to != new_assigned_to:
                 users_issues.setdefault(assigned_to, []).append(info)
             # Change
-            context.database.change_resource(issue)
+            context.change_resource(issue)
 
         # Send mails
         if user is None:
