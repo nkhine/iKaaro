@@ -183,7 +183,7 @@ class CSS(Text):
         new_data = css_uri_expr.sub(my_func, data)
         self.handler.load_state_from_string(new_data)
 
-        get_context().database.change_resource(self)
+        get_context().change_resource(self)
 
 
     def update_relative_links(self, source):
