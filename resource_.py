@@ -91,7 +91,7 @@ class IResource(Resource):
     # Properties
     ########################################################################
     def get_title(self):
-        return unicode(self.name)
+        return unicode(self.get_name())
 
 
     def get_page_title(self):
@@ -460,7 +460,7 @@ class DBResource(CatalogAware, IResource):
 
         This method is required by the "move_resource" method.
         """
-        return [(self.name, new_name)]
+        return [(self.get_name(), new_name)]
 
 
     def _on_move_resource(self, source):

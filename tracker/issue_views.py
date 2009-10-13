@@ -45,7 +45,8 @@ class IssueTrackerMenu(ContextMenu):
     title = MSG(u'Tracker')
 
     def get_items(self):
-        path = self.context.get_link(self.resource.parent)
+        path = self.resource.get_parent().path
+        path = str(path)
         return [
             {'title': MSG(u'Search for issues'), 'href': '%s/;search' % path},
             {'title': MSG(u'Add a new issue'), 'href': '%s/;add_issue' % path}]
@@ -66,7 +67,7 @@ class Issue_Edit(STLForm):
 
 
     def get_schema(self, resource, context):
-        tracker = resource.parent
+        tracker = resource.get_parent()
         return get_issue_fields(tracker)
 
 
@@ -79,7 +80,8 @@ class Issue_Edit(STLForm):
     def get_namespace(self, resource, context):
         namespace = STLForm.get_namespace(self, resource, context)
 
-        tracker = resource.parent
+        # The first lines are very much the same of the add issue form
+        tracker = resource.get_parent()
         namespace['list_products'] = tracker.get_list_products_namespace()
 
         # Comments
@@ -128,7 +130,7 @@ class Issue_History(STLView):
     def get_namespace(self, resource, context):
         # Local variables
         users = resource.get_resource('/users')
-        tracker = resource.parent
+        tracker = resource.get_parent()
         versions = tracker.get_resource('version').handler
         types = tracker.get_resource('type').handler
         states = tracker.get_resource('state').handler

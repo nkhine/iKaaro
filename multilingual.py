@@ -36,7 +36,7 @@ class Multilingual(DBResource):
             handler = self.class_handler(string=body)
             extension = handler.class_extension
             name = FileName.encode((self.name, extension, language))
-            self.parent.handler.set_handler(name, handler)
+            self.get_parent().handler.set_handler(name, handler)
 
 
     def get_handler(self, language=None):
