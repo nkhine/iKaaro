@@ -41,6 +41,8 @@ class CMSTemplate(STLTemplate):
     template = None
 
     def get_template(self):
+        from boot import ui
+
         # Get the template
         template = self.template
         if template is None:
@@ -53,9 +55,7 @@ class CMSTemplate(STLTemplate):
 
         # Case 2: a path to a template in the filesystem (ui)
         if type(template) is str:
-            root = get_context().root
-            handler = root.get_resource(template)
-            return handler.events
+            return ui.get_template(template)
 
         raise ValueError, 'bad value for the template attribute'
 
