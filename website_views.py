@@ -27,10 +27,10 @@ from itools.core import freeze, get_abspath, merge_dicts
 from itools.csv import Property
 from itools.datatypes import Email, String, Unicode
 from itools.datatypes import Enumerate
+from itools.fs import lfs
 from itools.gettext import MSG
 from itools.stl import stl
-from itools.fs import lfs
-from itools.web import STLView, INFO, ERROR
+from itools.web import STLView, INFO, ERROR, ViewField
 from itools.xapian import PhraseQuery, OrQuery, AndQuery, split_unicode
 
 # Import from ikaaro
@@ -61,8 +61,8 @@ class ForbiddenView(STLView):
 class InternalServerError(STLView):
     template = 'root/internal_server_error.xml'
 
-    def get_namespace(self, resource, context):
-        return {'traceback': format_exc()}
+    def traceback(self):
+        return format_exc()
 
 
 
@@ -191,10 +191,10 @@ class ContactForm(AutoForm):
     captcha_answer.title = MSG(u"Please answer this: {captcha_question}")
 
     field_names = ['to', 'from', 'subject', 'message_body']
-    def get_field(self, name, resource, context):
+    def get_field(self, name):
         # 'to' is dynamic
         if name == 'to':
-            contact_options = ContactOptions(resource=resource)
+            contact_options = ContactOptions(resource=self.resource)
             return SelectField('to', datatype=contact_options, required=True,
                                title=MSG(u'Recipient'))
 
@@ -203,7 +203,7 @@ class ContactForm(AutoForm):
             return EmailField('from', required=True,
                               title=MSG(u'Your email address'))
 
-        return AutoForm.get_field(self, name, resource, context)
+        return AutoForm.get_field.im_func(self, name)
 
 
     def get_value(self, resource, context, name, field):
@@ -250,26 +250,14 @@ class SiteSearchView(SearchForm):
     title = MSG(u'Search')
     template = 'website/search.xml'
 
-    search_schema = {
-        'site_search_text': Unicode}
+    site_search_text = ViewField(source='query', datatype=Unicode)
+
+    sort_by = None
+    reverse = None
 
 
-    def get_namespace(self, resource, context):
-        namespace = SearchForm.get_namespace(self, resource, context)
-        namespace['text'] = context.get_query_value('site_search_text').strip()
-        return namespace
-
-
-    def get_query_schema(self):
-        schema = merge_dicts(SearchForm.get_query_schema(self))
-        del schema['sort_by']
-        del schema['reverse']
-        return schema
-
-
-    def get_search_namespace(self, resource, context):
-        text = context.get_query_value('site_search_text')
-        return {'text': text}
+    def text(self):
+        return self.context.get_query_value('site_search_text').strip()
 
 
     search_template = 'website/search_form.xml'
@@ -337,7 +325,7 @@ class AboutView(STLView):
     template = 'root/about.xml'
 
 
-    def get_namespace(self, resource, context):
+    def packages(self):
         # Python, itools & ikaaro
         packages = ['sys', 'itools', 'ikaaro']
         config = globals.config
@@ -398,8 +386,7 @@ class AboutView(STLView):
         packages_ns.insert(0,
             {'name': MSG(u'Operating System'), 'version': platform})
 
-        namespace = {'packages': packages_ns}
-        return namespace
+        return packages_ns
 
 
 
@@ -411,13 +398,10 @@ class CreditsView(STLView):
     styles = ['/ui/credits.css']
 
 
-    def get_namespace(self, resource, context):
-        # Build the namespace
+    def hackers(self):
         credits = get_abspath('CREDITS')
         lines = lfs.open(credits).readlines()
-        names = [ x[3:].strip() for x in lines if x.startswith('N: ') ]
-
-        return {'hackers': names}
+        return [ x[3:].strip() for x in lines if x.startswith('N: ') ]
 
 
 

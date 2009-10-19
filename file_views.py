@@ -125,7 +125,7 @@ class File_Download(BaseView):
         return resource.handler.get_mtime()
 
 
-    def http_get(self, resource, context):
+    def http_get(self):
         # Content-Type
         content_type = resource.get_content_type()
         # Content-Disposition
@@ -250,7 +250,7 @@ class File_ExternalEdit(BaseView):
     access = 'is_allowed_to_edit'
 
 
-    def http_get(self, resource, context):
+    def http_get(self):
         """Protocol used (with restedit.py):
         1- we add a header to the content of the file.
         2- the header is separated from the rest of the file by a "\n\n".
@@ -312,7 +312,7 @@ class Image_Thumbnail(BaseView):
         return resource.handler.get_mtime()
 
 
-    def http_get(self, resource, context):
+    def http_get(self):
         width = context.get_query_value('width', type=Integer, default=48)
         height = context.get_query_value('height', type=Integer, default=48)
 
