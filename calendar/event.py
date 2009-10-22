@@ -27,16 +27,21 @@ from itools.gettext import MSG
 from itools.web import ERROR, FormError, STLForm, get_context
 
 # Import from ikaaro
-from ikaaro.autoform import AutoForm, DateWidget, SelectWidget, TextWidget
-from ikaaro.autoform import description_widget, title_widget
+from ikaaro.autoform import AutoForm
 from ikaaro.file import File
 from ikaaro.folder import Folder
+from ikaaro.forms import DateTimeField, DescriptionField, Select, SelectField
+from ikaaro.forms import TextField, TitleField
 from ikaaro.registry import register_document_type
 from ikaaro.views_new import NewInstanceByDate, TodayDataType
 
 
-# FIXME dtstart and dtend must be datetime objects, the problem is we do
-# not have the DateTimeWidget yet.
+
+class NowDataType(DateTime):
+
+    def get_default(cls):
+        return datetime.now()
+
 
 
 class Status(Enumerate):
@@ -50,30 +55,24 @@ class Status(Enumerate):
 
 class Event_NewInstance(NewInstanceByDate):
 
-    query_schema = freeze({
-        'type': String,
-        'title': Unicode,
-        'dtstart': TodayDataType,
-        'dtend': TodayDataType,
-        'description': Unicode,
-        'location': String,
-        'status': Status})
+    title = TitleField(required=True)
 
-    schema = freeze({
-        'title': Unicode(mandatory=True),
-        'dtstart': TodayDataType(mandatory=True),
-        'dtend': TodayDataType,
-        'description': Unicode,
-        'location': String,
-        'status': Status})
+    date = None
 
-    widgets = freeze([
-        title_widget,
-        DateWidget('dtstart', title=MSG(u'Start')),
-        DateWidget('dtend', title=MSG(u'End')),
-        description_widget,
-        TextWidget('location', title=MSG(u'Location')),
-        SelectWidget('status', title=MSG(u'Status'), has_empty_option=False)])
+    dtstart = DateTimeField(datatype=NowDataType, required=True)
+    dtstart.title = MSG(u'Start')
+
+    dtend = DateTimeField(datatype=NowDataType, required=True)
+    dtend.title = MSG(u'End')
+
+    description = DescriptionField()
+    location = TextField(datatype=String, title=MSG(u'Location'))
+
+    status = SelectField(datatype=Status, title=MSG(u'Status'))
+    status.widget = Select(has_empty_option=False)
+
+    field_names = [
+        'title', 'dtstart', 'dtend', 'description', 'location', 'status']
 
 
     def get_date(self, context, form):
@@ -101,20 +100,16 @@ class Event_Edit(AutoForm):
 
 
     schema = freeze({
-        'title': Unicode(mandatory=True),
-        'dtstart': TodayDataType(mandatory=True),
-        'dtend': TodayDataType,
-        'description': Unicode,
-        'location': String,
-        'status': Status})
-
-    widgets = freeze([
-        title_widget,
-        DateWidget('dtstart', title=MSG(u'Start')),
-        DateWidget('dtend', title=MSG(u'End')),
-        description_widget,
-        TextWidget('location', title=MSG(u'Location')),
-        SelectWidget('status', title=MSG(u'Status'), has_empty_option=False)])
+        'title': TitleField('title', required=True),
+        'dtstart': DateTimeField('dtstart', datatype=NowDataType,
+                                 required=True, title=MSG(u'Start')),
+        'dtend': DateTimeField('dtend', datatype=NowDataType,
+                               title=MSG(u'End')),
+        'description': DescriptionField,
+        'location': TextField('location', title=MSG(u'Location')),
+        'status': SelectField('status', datatype=Status,
+                              widget=Select(has_empty_option=False),
+                              title=MSG(u'Status'))})
 
 
     def get_value(self, resource, context, name, datatype):

@@ -33,12 +33,10 @@ from itools.web import BaseView
 from itools.xml import START_ELEMENT
 
 # Import from ikaaro
-from autoform import HTMLBody
-from autoform import title_widget, description_widget, subject_widget
-from autoform import file_widget, rte_widget, timestamp_widget
 from cc import SubscribeForm
 import messages
 from file_views import File_Edit
+from forms import RTEField
 from multilingual import Multilingual
 from text import Text
 from registry import register_resource_class
@@ -171,14 +169,8 @@ class HTMLEditView(File_Edit):
     """WYSIWYG editor for HTML documents.
     """
 
-    def get_schema(self, resource, context):
-        schema = File_Edit.get_schema(self, resource, context)
-        return merge_dicts(schema, data=HTMLBody)
-
-
-    widgets = [
-        timestamp_widget, title_widget, state_widget, rte_widget, file_widget,
-        description_widget, subject_widget]
+    schema = merge_dicts(File_Edit.schema,
+        data=RTEField('data', title=MSG(u'Body')))
 
 
     def get_value(self, resource, context, name, datatype):

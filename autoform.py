@@ -19,126 +19,28 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # Import from itools
-from itools.core import get_abspath, merge_dicts
-from itools.datatypes import DataType, Date, Enumerate, Boolean
+from itools.core import get_abspath, thingy_lazy_property
+from itools.datatypes import Date, Enumerate, Boolean
 from itools.gettext import MSG
-from itools.html import stream_to_str_as_xhtml, stream_to_str_as_html
-from itools.html import xhtml_doctype, sanitize_stream
 from itools.http import get_context
 from itools import vfs
 from itools.web import STLForm
-from itools.xml import XMLParser
 
 # Import from ikaaro
-from utils import CMSTemplate
+from forms import Widget, DateWidget, RadioInput, Select, TextInput
+from forms import make_stl_template
 
 
 
-stl_namespaces = {
-    None: 'http://www.w3.org/1999/xhtml',
-    'stl': 'http://www.hforge.org/xml-namespaces/stl'}
-xhtml_namespaces = {None: 'http://www.w3.org/1999/xhtml'}
-
-
-
-###########################################################################
-# DataTypes
-###########################################################################
-class XHTMLBody(DataType):
-    """Read and write XHTML.
-    """
-    sanitize_html = True
-
-    def decode(cls, data):
-        events = XMLParser(data, namespaces=xhtml_namespaces,
-                           doctype=xhtml_doctype)
-        if cls.sanitize_html is True:
-            events = sanitize_stream(events)
-        return list(events)
-
-
-    @staticmethod
-    def encode(value):
-        if value is None:
-            return ''
-        return stream_to_str_as_xhtml(value)
-
-
-
-class HTMLBody(XHTMLBody):
-    """TinyMCE specifics: read as XHTML, rendered as HTML.
-    """
-
-    @staticmethod
-    def encode(value):
-        if value is None:
-            return ''
-        return stream_to_str_as_html(value)
-
-
-
-###########################################################################
-# Widgets
-###########################################################################
 def get_default_widget(datatype):
     if issubclass(datatype, Boolean):
-        return BooleanCheckBox
+        return RadioInput
     elif issubclass(datatype, Date):
         return DateWidget
     elif issubclass(datatype, Enumerate):
-        return SelectWidget
+        return Select
 
-    return TextWidget
-
-
-
-class Widget(CMSTemplate):
-
-    size = None
-    tip = None
-    suffix = None
-    type = 'text'
-
-    template = list(XMLParser(
-        """<input type="${type}" id="${id}" name="${name}" value="${value}"
-          size="${size}" />""",
-        stl_namespaces))
-
-
-    def __init__(self, name, template=None, template_multiple=None, **kw):
-        if name:
-            self.name = name
-        self.id = self.name.replace('_', '-')
-        if template is not None:
-            self.template = template
-        if template_multiple is not None:
-            self.template_multiple = template_multiple
-        for key in kw:
-            setattr(self, key, kw[key])
-
-
-
-class TextWidget(Widget):
-
-    size = 40
-
-
-
-class HiddenWidget(Widget):
-
-    type = 'hidden'
-
-
-
-class FileWidget(Widget):
-
-    type = 'file'
-
-
-
-class PasswordWidget(Widget):
-
-    type = 'password'
+    return TextInput
 
 
 
@@ -176,58 +78,15 @@ class ReadOnlyWidget(Widget):
 
 
 
-class MultilineWidget(Widget):
+class CheckboxWidget(Widget):
 
-    rows = 5
-    cols = 60
-
-    template = list(XMLParser(
-        """<textarea rows="${rows}" cols="${cols}" id="${id}" name="${name}"
-        >${value}</textarea>""",
-        stl_namespaces))
-
-
-    def get_namespace(self, datatype, value):
-        return {
-            'name': self.name,
-            'id': self.id,
-            'value': value,
-            'rows': self.rows,
-            'cols': self.cols}
-
-
-
-class CheckBoxWidget(Widget):
-
-    template = list(XMLParser("""
-        <input type="checkbox" id="${id}" name="${name}" value="${value}"
-          checked="${is_selected}" />
-        """, stl_namespaces))
-
-
-    def get_namespace(self, datatype, value):
-        return {
-            'name': self.name,
-            'id': self.id,
-            'value': value,
-            'is_selected': getattr(self, 'is_selected', False)}
-
-
-
-class BooleanCheckBox(Widget):
-
-    template = list(XMLParser("""
-        <input type="checkbox" id="${id}" name="${name}" value="1"
-          checked="${is_selected}" />
-        """, stl_namespaces))
-
-
-    def get_namespace(self, datatype, value):
-        return {
-            'name': self.name,
-            'id': self.id,
-            'is_selected': value in [True, 1, '1']}
-
+    template = make_stl_template("""
+    <stl:block stl:repeat="option options">
+      <input type="checkbox" id="${id}-${option/name}" name="${name}"
+        value="${option/name}" checked="${option/selected}" />
+      <label for="${id}-${option/name}">${option/value}</label>
+      <br stl:if="not oneline" />
+    </stl:block>""")
 
 
 class BooleanRadio(Widget):
@@ -258,150 +117,7 @@ class BooleanRadio(Widget):
 
 
 
-class SelectWidget(Widget):
-
-    template = list(XMLParser("""
-        <select id="${id}" name="${name}" multiple="${multiple}" size="${size}"
-            class="${css}">
-          <option value="" stl:if="has_empty_option"></option>
-          <option stl:repeat="option options" value="${option/name}"
-            selected="${option/selected}">${option/value}</option>
-        </select>
-        """, stl_namespaces))
-
-
-    def get_namespace(self, datatype, value):
-        # Check whether the value is already a list of options
-        # FIXME This is done to avoid a bug when using a select widget in an
-        # auto-form, where the 'datatype.get_namespace' method is called
-        # twice (there may be a better way of handling this).
-        if type(value) is not list:
-            value = datatype.get_namespace(value)
-        return {
-            'css': getattr(self, 'css', None),
-            'has_empty_option': getattr(self, 'has_empty_option', True),
-            'name': self.name,
-            'id': self.id,
-            'multiple': datatype.multiple,
-            'options': value,
-            'size':  getattr(self, 'size', None)}
-
-
-
-class SelectRadio(Widget):
-
-    template = list(XMLParser("""
-        <stl:block stl:if="has_empty_option">
-          <input type="radio" name="${name}" value="" checked="checked"
-            stl:if="none_selected"/>
-          <input type="radio" name="${name}" value=""
-            stl:if="not none_selected"/>
-          <stl:block stl:if="not is_inline"><br/></stl:block>
-        </stl:block>
-        <stl:block stl:repeat="option options">
-          <input type="radio" id="${id}-${option/name}" name="${name}"
-            value="${option/name}" checked="checked"
-            stl:if="option/selected"/>
-          <input type="radio" id="${id}-${option/name}" name="${name}"
-            value="${option/name}" stl:if="not option/selected"/>
-          <label for="${id}-${option/name}">${option/value}</label>
-          <stl:block stl:if="not is_inline"><br/></stl:block>
-        </stl:block>
-        """, stl_namespaces))
-
-    template_multiple = list(XMLParser("""
-        <stl:block stl:repeat="option options">
-          <input type="checkbox" name="${name}" id="${id}-${option/name}"
-            value="${option/name}" checked="${option/selected}" />
-          <label for="${id}-${option/name}">${option/value}</label>
-          <stl:block stl:if="not is_inline"><br/></stl:block>
-        </stl:block>
-        """, stl_namespaces))
-
-
-    def get_template(self, datatype, value):
-        if datatype.multiple:
-            return self.template_multiple
-        return self.template
-
-
-    def get_namespace(self, datatype, value):
-        # Check whether the value is already a list of options
-        # FIXME This is done to avoid a bug when using a select widget in an
-        # auto-form, where the 'datatype.get_namespace' method is called
-        # twice (there may be a better way of handling this).
-        if type(value) is not list:
-            options = datatype.get_namespace(value)
-        else:
-            options = value
-
-        is_inline = getattr(self, 'is_inline', False)
-        has_empty_option = getattr(self, 'has_empty_option', True)
-        for option in options:
-            if option['selected'] is True:
-                none_selected = False
-                break
-        else:
-            # Select first item if no empty option
-            none_selected = True
-            if not has_empty_option and options:
-                options[0]['selected'] = True
-        return {
-            'name': self.name,
-            'id': self.id,
-            'is_inline': is_inline,
-            'has_empty_option': has_empty_option,
-            'none_selected': none_selected,
-            'options': options}
-
-
-
-class DateWidget(Widget):
-
-    tip = MSG(u"Format: 'yyyy-mm-dd'")
-
-    template = make_stl_template("""
-    <input type="text" name="${name}" value="${value_}" id="${id}"
-      class="dateField" size="${size}" />
-    <input type="button" value="..." class="${css}" />
-    <script language="javascript">
-      jQuery( "input.dateField" ).dynDateTime({
-        ifFormat: "${format}",
-        showsTime: ${show_time_js},
-        timeFormat: "24",
-        button: ".next()" });
-    </script>""")
-
-
-    css = None
-    format = '%Y-%m-%d'
-    size = None
-    show_time = False
-
-    def show_time_js(self):
-        # True -> true for Javascript
-        return 'true' if self.show_time else 'false'
-
-
-    @thingy_lazy_property
-    def value_(self):
-        value = self.value
-        if value is None:
-            value = ''
-        format = getattr(self, 'format', '%Y-%m-%d')
-        show_time = getattr(self, 'show_time', False)
-        # True -> true for Javascript
-        show_time = str(show_time).lower()
-        css = getattr(self, 'css', None)
-        size = getattr(self, 'size', None)
-
-        return {'name': self.name, 'id': self.id,
-                'format': format, 'show_time': show_time,
-                'class': css, 'size': size, 'value': value}
-
-
-
-class PathSelectorWidget(TextWidget):
+class PathSelectorWidget(TextInput):
 
     action = 'add_link'
     display_workflow = True
@@ -466,80 +182,6 @@ class ImageSelectorWidget(PathSelectorWidget):
 
 
 
-class RTEWidget(Widget):
-
-    template = 'tiny_mce/rte.xml'
-    rte_css = ['/ui/aruni/style.css', '/ui/tiny_mce/content.css']
-    rte_scripts = [
-        '/ui/tiny_mce/tiny_mce_src.js',
-        '/ui/tiny_mce/javascript.js']
-
-    # Configuration
-    # See http://wiki.moxiecode.com/index.php/TinyMCE:Configuration
-    width = None
-    height = '340px'
-    # toolbar
-    toolbar1 = ('newdocument,code,|,bold,italic,underline,strikethrough,|,'
-                'justifyleft,justifycenter,justifyright, justifyfull,|,'
-                'bullist,numlist,|, outdent, indent,|,undo,redo,|,link,'
-                'unlink,image,media')
-    toolbar2 = ('tablecontrols,|,removeformat,forecolor,backcolor,|,'
-                'formatselect')
-    toolbar3 = None
-    resizing = True
-    plugins = 'safari,table,media,advimage,advlink'
-    # Extending the existing rule set.
-    extended_valid_elements = None
-    # css
-    advanced_styles = None
-    table_styles = None
-
-
-    def get_rte_css(self):
-        return self.rte_css
-
-
-    def get_namespace(self, datatype, value):
-        # Language
-        path = get_abspath('ui/tiny_mce/langs')
-        tiny_mce_languages = [ x[:-3] for x in vfs.get_names(path) ]
-        accept = get_context().accept_language
-        current_language = accept.select_language(tiny_mce_languages)
-
-        css_names = self.get_rte_css()
-        return {
-            'advanced_styles': self.advanced_styles,
-            'css': ','.join(css_names),
-            'extended_valid_elements': self.extended_valid_elements,
-            'form_name': self.name,
-            'id': self.id,
-            'height': self.height,
-            'language': current_language,
-            'plugins': self.plugins,
-            'resizing': 'true' if self.resizing else 'false',
-            'scripts': self.rte_scripts,
-            'source': value,
-            'table_styles': self.table_styles,
-            'toolbar1': self.toolbar1,
-            'toolbar2': self.toolbar2,
-            'toolbar3': self.toolbar3,
-            'width': self.width}
-
-
-###########################################################################
-# Common widgets to reuse
-###########################################################################
-name_widget = TextWidget('name', title=MSG(u'Name'), default='')
-title_widget = TextWidget('title', title=MSG(u'Title'))
-description_widget = MultilineWidget('description',
-                                     title=MSG(u'Description'), rows=8)
-subject_widget = TextWidget('subject',
-                            title=MSG(u'Keywords (Separated by comma)'))
-rte_widget = RTEWidget('data', title=MSG(u'Body'))
-timestamp_widget = HiddenWidget('timestamp')
-file_widget = FileWidget('file', title=MSG(u'Replace file'))
-
-
 ###########################################################################
 # Generate Form
 ###########################################################################
@@ -551,53 +193,37 @@ class AutoForm(STLForm):
 
     Widgets is a list:
 
-      [TextWidget('firstname', title=MSG(u'Firstname')),
-       TextWidget('lastname', title=MSG(u'Lastname'))]
+      [TextInput('firstname', title=MSG(u'Firstname')),
+       TextInput('lastname', title=MSG(u'Lastname'))]
     """
 
-    widgets = []
     template = 'auto_form.xml'
     submit_value = MSG(u'Save')
     submit_class = 'button-ok'
     description = None
-
-
-    def get_widgets(self, resource, context):
-        return self.widgets
+    fields_order = []
 
 
     def get_namespace(self, resource, context):
-        widgets_namespace = STLForm.get_namespace(self, resource, context)
-
-        here = context.resource
         # Local Variables
-        fields = self.get_schema(resource, context)
-        widgets = self.get_widgets(resource, context)
+        field_names = self.get_field_names(resource, context)
 
         # Build widgets namespace
-        ns_widgets = []
-        for widget in widgets:
-            datatype = fields[widget.name]
-            widget_namespace = widgets_namespace[widget.name]
-            value = widget_namespace['value']
-            widget_namespace['title'] = getattr(widget, 'title', None)
-            is_mandatory = getattr(datatype, 'mandatory', False)
-            widget_namespace['mandatory'] = is_mandatory
-            widget_namespace['multiple'] = datatype.multiple
-            widget_namespace['is_date'] = issubclass(datatype, Date)
-            widget_namespace['tip'] = widget.tip
-            widget_namespace['suffix'] = widget.suffix
-            widget = widget(datatype=datatype, value=value)
-            widget_namespace['widget'] = widget.render()
-            ns_widgets.append(widget_namespace)
+        fields = []
+        for name in field_names:
+            field = context.input.get(name)
+            if field is None:
+                field = self.get_field(name, resource, context)
+            field = field(resource=resource, context=context)
+            fields.append(field.render())
 
         # Build namespace
         return {
-            'title': self.get_title(context),
+            'title': self.get_view_title(context),
             'description': self.description,
-            'first_widget': widgets[0].name,
+            'first_field': field_names[0],
             'action': context.uri,
             'submit_value': self.submit_value,
             'submit_class': self.submit_class,
-            'widgets': ns_widgets}
+            'fields': fields}
 

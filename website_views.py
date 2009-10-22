@@ -23,7 +23,7 @@ import sys
 from traceback import format_exc
 
 # Import from itools
-from itools.core import get_abspath, merge_dicts
+from itools.core import freeze, get_abspath, merge_dicts
 from itools.csv import Property
 from itools.datatypes import Email, String, Unicode
 from itools.datatypes import Enumerate
@@ -34,7 +34,8 @@ from itools.web import STLView, INFO, ERROR
 from itools.xapian import PhraseQuery, OrQuery, AndQuery, split_unicode
 
 # Import from ikaaro
-from autoform import AutoForm, SelectWidget, MultilineWidget, TextWidget
+from autoform import AutoForm
+from forms import EmailField, SelectField, TextField, Textarea
 import globals
 from messages import MSG_NEW_RESOURCE
 from registry import get_resource_class
@@ -72,10 +73,11 @@ class ForgottenPasswordForm(AutoForm):
     submit_value = MSG(u'Ok')
     meta = [('robots', 'noindex, follow', None)]
 
-    widgets = [
-        TextWidget('username', title=MSG(u'Type your email address'))]
+    query_schema = {'username': Email(default='')}
 
-    schema = query_schema = {'username': Email(default='')}
+    schema = freeze({
+        'username': EmailField('username',
+                               title=MSG(u'Type your email address'))})
 
 
     def get_value(self, resource, context, name, datatype):
@@ -114,14 +116,12 @@ class RegisterForm(AutoForm):
     submit_value = MSG(u'Register')
 
     schema = {
-        'firstname': Unicode(mandatory=True),
-        'lastname': Unicode(mandatory=True),
-        'email': Email(mandatory=True)}
-
-    widgets = [
-        TextWidget('firstname', title=MSG(u'First Name')),
-        TextWidget('lastname', title=MSG(u'Last Name')),
-        TextWidget('email', title=MSG(u'E-mail Address'))]
+        'firstname': TextField('firstname', required=True,
+                               title=MSG(u'First Name')),
+        'lastname': TextField('lastname', required=True,
+                              title=MSG(u'Last Name')),
+        'email': EmailField('email', required=True,
+                            title=MSG(u'E-mail Address'))}
 
 
     def action(self, resource, context, form):
@@ -182,32 +182,31 @@ class ContactForm(AutoForm):
                     'subject': Unicode,
                     'message_body': Unicode}
 
-    def get_schema(self, resource, context):
-        return {
-            'to': ContactOptions(resource=resource, mandatory=True),
-            'from': Email(mandatory=True),
-            'subject': Unicode(mandatory=True),
-            'message_body': Unicode(mandatory=True),
-            'captcha_answer': Unicode(mandatory=True),
-        }
+
+    subject = TextField(required=True, title=MSG(u'Message subject'))
+    message_body = TextField(required=True, title=MSG(u'Message body'))
+    message_body.widget = Textarea(rows=8, cols=50)
+
+    captcha_answer = TextField(required=True)
+    captcha_answer.title = MSG(u"Please answer this: {captcha_question}")
+
+    field_names = ['to', 'from', 'subject', 'message_body']
+    def get_field(self, name, resource, context):
+        # 'to' is dynamic
+        if name == 'to':
+            contact_options = ContactOptions(resource=resource)
+            return SelectField('to', datatype=contact_options, required=True,
+                               title=MSG(u'Recipient'))
+
+        # 'from' is a Python reserved word
+        if name == 'from':
+            return EmailField('from', required=True,
+                              title=MSG(u'Your email address'))
+
+        return AutoForm.get_field(self, name, resource, context)
 
 
-    def get_widgets(self, resource, context):
-        captcha_question = resource.get_property('captcha_question')
-        captcha_title = MSG(u"Please answer this: {captcha_question}")
-        captcha_title = captcha_title.gettext(
-                captcha_question=captcha_question)
-        return [
-            SelectWidget('to', title=MSG(u'Recipient')),
-            TextWidget('from', title=MSG(u'Your email address'), size=40),
-            TextWidget('subject', title=MSG(u'Message subject'), size=40),
-            MultilineWidget('message_body', title=MSG(u'Message body'),
-                            rows=8, cols=50),
-            TextWidget('captcha_answer', title=captcha_title),
-        ]
-
-
-    def get_value(self, resource, context, name, datatype):
+    def get_value(self, resource, context, name, field):
         if name == 'from':
             user = context.user
             if user is not None:
@@ -216,7 +215,7 @@ class ContactForm(AutoForm):
             query = context.query
             if name in query:
                 return query[name]
-        return datatype.get_default()
+        return field.datatype.get_default()
 
 
     def action(self, resource, context, form):
