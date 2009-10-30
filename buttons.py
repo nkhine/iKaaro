@@ -109,8 +109,6 @@ class PublishButton(Button):
     def show(self, resource, context, items):
         ac = resource.get_access_control()
         for item in items:
-            if type(item) is tuple:
-                item = item[1]
             if ac.is_allowed_to_trans(context.user, item, 'publish'):
                 return True
         return False
