@@ -22,7 +22,7 @@
 from os.path import basename
 
 # Import from itools
-from itools.core import merge_dicts
+from itools.core import merge_dicts, thingy_lazy_property
 from itools.csv import Property
 from itools.datatypes import Integer, Unicode, String, HTTPDate
 from itools.gettext import MSG
@@ -52,10 +52,12 @@ class File_NewInstance(NewInstance):
     submit_value = MSG(u'Upload')
 
 
+    name = None
     file = FileField(required=True, size=35, title=MSG(u'File'))
 
 
-    def get_new_resource_name(self):
+    @thingy_lazy_property
+    def new_resource_name(self):
         # If the name is not explicitly given, use the title
         # or get it from the file
         name = self.name.value
@@ -71,8 +73,8 @@ class File_NewInstance(NewInstance):
         return name
 
 
-    def action(self, resource, context, form):
-        filename, mimetype, body = form['file']
+    def action(self):
+        filename, mimetype, body = self.file.value
         kk, type, language = FileName.decode(filename)
 
         # Web Pages are first class citizens
@@ -86,6 +88,8 @@ class File_NewInstance(NewInstance):
         cls = get_resource_class(class_id)
 
         # Multilingual resources, find out the language
+        resource = self.resource
+        context = self.context
         if issubclass(cls, Multilingual):
             if language is None:
                 encoding = guess_encoding(body)
@@ -95,7 +99,7 @@ class File_NewInstance(NewInstance):
                     language = resource.get_content_language(context)
 
         # Build the resource
-        name = form['name']
+        name = self.new_resource_name
         kw = {'format': class_id, 'filename': filename}
         if issubclass(cls, Multilingual):
             kw['language'] = language
@@ -104,7 +108,7 @@ class File_NewInstance(NewInstance):
         child = resource.make_resource(name, cls, body=body, **kw)
 
         # The title
-        title = form['title'].strip()
+        title = self.title.value.strip()
         language = resource.get_content_language(context)
         title = Property(title, lang=language)
         child.metadata.set_property('title', title)
@@ -127,6 +131,9 @@ class File_Download(BaseView):
 
 
     def http_get(self):
+        context = self.context
+        resource = self.resource
+
         # Content-Type
         content_type = resource.get_content_type()
         # Content-Disposition
@@ -146,16 +153,17 @@ class File_View(STLView):
     access = 'is_allowed_to_view'
     title = MSG(u'Download')
     icon = 'view.png'
-    template = '/ui/file/download_form.xml'
+    template = 'file/download_form.xml'
 
 
-    def get_namespace(self, resource, context):
+    def url(self):
+        return '../' + self.resource.get_name()
+
+
+    def filename(self):
+        resource = self.resource
         filename = resource.get_property('filename')
-        if not filename:
-            filename = resource.get_title()
-        return {
-            'url': '../' + resource.get_name(),
-            'filename': filename}
+        return filename if filename else resource.get_title()
 
 
 
