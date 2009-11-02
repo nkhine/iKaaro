@@ -36,7 +36,7 @@ from itools.xapian import PhraseQuery, OrQuery, AndQuery, split_unicode
 
 # Import from ikaaro
 from autoform import AutoForm
-from forms import EmailField, SelectField, TextField, Textarea
+from forms import EmailField, SelectField, TextField, TextareaField
 import globals
 from messages import MSG_NEW_RESOURCE
 from registry import get_resource_class
@@ -185,8 +185,8 @@ class ContactForm(AutoForm):
 
 
     subject = TextField(required=True, title=MSG(u'Message subject'))
-    message_body = TextField(required=True, title=MSG(u'Message body'))
-    message_body.widget = Textarea(rows=8, cols=50)
+    message_body = TextareaField(required=True, rows=8, cols=50)
+    message_body.title = MSG(u'Message body')
 
     captcha_answer = TextField(required=True)
     captcha_answer.title = MSG(u"Please answer this: {captcha_question}")

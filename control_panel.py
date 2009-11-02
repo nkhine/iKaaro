@@ -33,7 +33,7 @@ from access import RoleAware_BrowseUsers, RoleAware_AddUser
 from access import RoleAware_EditMembership
 from folder_views import Folder_Orphans
 from forms import TextWidget
-from forms import SelectField, TextField, Textarea
+from forms import SelectField, TextareaField
 import messages
 from resource_views import DBResource_Edit
 from views import IconsView, ContextMenu
@@ -186,8 +186,7 @@ class CPEditContactOptions(DBResource_Edit):
     context_menus = context_menus
 
 
-    emails_signature = TextField(title=MSG(u'Emails signature'))
-    emails_signature.widget = Textarea
+    emails_signature = TextareaField(title=MSG(u'Emails signature'))
 
     captcha_question = TextField(required=True, title=MSG(u'Captcha question'))
     captcha_answer = TextField(required=True, title=MSG(u'Captcha answer'))
