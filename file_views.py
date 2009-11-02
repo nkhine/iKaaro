@@ -162,11 +162,8 @@ class File_View(STLView):
 
 class File_Edit(DBResource_Edit):
 
-    def get_schema(self, resource, context):
-        return merge_dicts(
-            DBResource_Edit.schema,
-            state=StateEnumerate(resource=resource, context=context),
-            file=ReplaceFileField)
+    state=StateEnumerate(resource=resource, context=context),
+    file = ReplaceFileField()
 
 
     def get_value(self, resource, context, name, datatype):
