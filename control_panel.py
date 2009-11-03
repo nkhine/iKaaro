@@ -78,8 +78,10 @@ class ControlPanel(IconsView):
     icon = 'settings.png'
     context_menus = context_menus
 
+    def items(self):
+        resource = self.resource
+        context = self.context
 
-    def get_namespace(self, resource, context):
         items = []
         for name in resource.class_control_panel:
             view = resource.get_view(name)
@@ -93,10 +95,7 @@ class ControlPanel(IconsView):
                 'description': view.description,
                 'url': ';%s' % name})
 
-        return {
-            'title': MSG(u'Control Panel'),
-            'batch': None,
-            'items': items}
+        return items
 
 
 
