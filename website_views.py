@@ -23,11 +23,10 @@ import sys
 from traceback import format_exc
 
 # Import from itools
-from itools.core import freeze, get_abspath, merge_dicts
+from itools.core import get_abspath, merge_dicts
 from itools.core import thingy_property, thingy_lazy_property
 from itools.csv import Property
-from itools.datatypes import Email, String, Unicode
-from itools.datatypes import Enumerate
+from itools.datatypes import Email, Enumerate, String, Unicode
 from itools.fs import lfs
 from itools.gettext import MSG
 from itools.stl import stl

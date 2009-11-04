@@ -24,7 +24,7 @@ from datetime import time
 # Import from itools
 from itools.core import merge_dicts
 from itools.csv import Property, property_to_str
-from itools.datatypes import DataType, Date, String
+from itools.datatypes import DataType, String
 from itools.gettext import MSG
 
 # Import from ikaaro
