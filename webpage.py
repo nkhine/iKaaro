@@ -172,11 +172,11 @@ class HTMLEditView(File_Edit):
     data = RTEField('data', title=MSG(u'Body'))
 
 
-    def get_value(self, resource, context, name, datatype):
-        if name == 'data':
-            language = resource.get_content_language(context)
-            return resource.get_html_data(language=language)
-        return File_Edit.get_value(self, resource, context, name, datatype)
+    def get_value(self, field):
+        if field.name == 'data':
+            return resource.get_html_data(language=self.content_language)
+
+        return super(HTMLEditView, self).get_value(field)
 
 
     def action(self, resource, context, form):
@@ -187,8 +187,7 @@ class HTMLEditView(File_Edit):
         # Properties
         if form['file'] is None:
             new_body = form['data']
-            language = resource.get_content_language(context)
-            handler = resource.get_handler(language=language)
+            handler = resource.get_handler(language=self.content_language)
             handler.set_body(new_body)
 
         # Ok
