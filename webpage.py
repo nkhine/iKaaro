@@ -35,8 +35,8 @@ from itools.xml import START_ELEMENT
 # Import from ikaaro
 from cc import SubscribeForm
 import messages
+from fields import RTEField
 from file_views import File_Edit
-from forms import RTEField
 from multilingual import Multilingual
 from text import Text
 from registry import register_resource_class
