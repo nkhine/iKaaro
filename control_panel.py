@@ -20,6 +20,7 @@
 
 # Import from itools
 from itools.core import thingy_property, thingy_lazy_property
+from itools.core import OrderedDict
 from itools.datatypes import Boolean, Enumerate, String
 from itools.gettext import MSG
 from itools.http import get_context
@@ -152,7 +153,7 @@ class CPEditSecurityPolicy(STLForm):
 
 
 
-def users(self):
+def values(self):
     values = []
     resource = self.view.resource
     users = resource.get_resource('/users')
@@ -163,8 +164,8 @@ def users(self):
         email = user.get_value('email')
         title = user.get_title()
         title = email if title == email else '%s <%s>' % (title, email)
-        values.append(username, user_title)
-    values.sort(key=lambda x: x[1].lower())
+        values.append((username, {'title': title}))
+    values.sort(key=lambda x: x[1]['title'].lower())
 
     return OrderedDict(values)
 
@@ -182,11 +183,11 @@ class CPEditContactOptions(DBResource_Edit):
     emails_signature = textarea_field(title=MSG(u'Emails signature'))
 
     emails_from_addr = choice_field(title=MSG(u'Emails from addr'))
-    emails_from_addr.values = thingy_lazy_property(users)
+    emails_from_addr.values = thingy_lazy_property(values)
 
     contacts = multiple_choice_field()
     contacts.title = MSG(u'Select the contact accounts')
-    contacts.values = thingy_lazy_property(users)
+    contacts.values = thingy_lazy_property(values)
 
     captcha_question = TextField(required=True, title=MSG(u'Captcha question'))
     captcha_answer = TextField(required=True, title=MSG(u'Captcha answer'))
