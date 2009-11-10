@@ -37,7 +37,7 @@ from itools.web import file_field, integer_field
 from itools.workflow import WorkflowError
 
 # Import from ikaaro
-from fields import image_size_field
+from fields import file_preview_field, image_size_field
 import messages
 from multilingual import Multilingual
 from registry import get_resource_class
@@ -169,7 +169,7 @@ class File_View(STLView):
 class File_Edit(DBResource_Edit):
 
     state = StateEnumerate(resource=resource, context=context)
-    file = file_field(title=MSG(u'Replace file'))
+    file = file_preview_field(title=MSG(u'Replace file'))
 
 
     def get_value(self, name):
