@@ -44,45 +44,6 @@ def get_default_field(datatype):
 
 
 
-class CheckboxWidget(object):
-
-    template = make_stl_template("""
-    <stl:block stl:repeat="option options">
-      <input type="checkbox" id="${id}-${option/name}" name="${name}"
-        value="${option/name}" checked="${option/selected}" />
-      <label for="${id}-${option/name}">${option/value}</label>
-      <br stl:if="not oneline" />
-    </stl:block>""")
-
-
-class BooleanRadio(Widget):
-
-    template = list(XMLParser("""
-        <label for="${id}-yes">${labels/yes}</label>
-        <input id="${id}-yes" name="${name}" type="radio" value="1"
-          checked="checked" stl:if="is_yes"/>
-        <input id="${id}-yes" name="${name}" type="radio" value="1"
-          stl:if="not is_yes"/>
-
-        <label for="${id}-no">${labels/no}</label>
-        <input id="${id}-no" name="${name}" type="radio" value="0"
-          checked="checked" stl:if="not is_yes"/>
-        <input id="${id}-no" name="${name}" type="radio" value="0"
-          stl:if="is_yes"/>
-        """, stl_namespaces))
-
-
-    def get_namespace(self, datatype, value):
-        default_labels = {'yes': MSG(u'Yes'), 'no': MSG(u'No')}
-        labels = getattr(self, 'labels', default_labels)
-        return {
-            'name': self.name,
-            'id': self.id,
-            'is_yes': value in [True, 1, '1'],
-            'labels': labels}
-
-
-
 class PathSelectorWidget(object):
 
     action = 'add_link'
