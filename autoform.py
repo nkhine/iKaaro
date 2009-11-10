@@ -24,8 +24,8 @@ from itools.datatypes import Date, Enumerate, Boolean
 from itools.gettext import MSG
 from itools.http import get_context
 from itools.web import STLForm, make_stl_template
-from itools.web import boolean_field, choice_field, hidden_field, input_field
-from itools.web import text_field
+from itools.web import boolean_field, choice_field, hidden_field
+from itools.web import readonly_field, text_field
 
 # Import from ikaaro
 from fields import DateField
@@ -41,40 +41,6 @@ def get_default_field(datatype):
         return choice_field
 
     return text_field
-
-
-
-class ReadOnlyWidget(object):
-
-    template = list(XMLParser(
-        """<input type="hidden" id="${id}" name="${name}" value="${value}" />
-           ${displayed}""", stl_namespaces))
-
-
-    def get_namespace(self, datatype, value):
-        displayed = getattr(self, 'displayed', None)
-
-        if issubclass(datatype, Enumerate) and isinstance(value, list):
-            for option in value:
-                if not option['selected']:
-                    continue
-                value = option['name']
-                if displayed is None:
-                    displayed = option['value']
-                break
-            else:
-                value = datatype.default
-                if displayed is None:
-                    displayed = datatype.get_value(value)
-
-        if displayed is None:
-            displayed = value
-
-        return {
-            'name': self.name,
-            'id': self.id,
-            'value': value,
-            'displayed': displayed}
 
 
 
@@ -215,13 +181,12 @@ class AutoForm(STLForm):
 
     @thingy_lazy_property
     def hidden_fields(self):
-        x = [ x for x in self.fields if not issubclass(x, input_field) ]
-        return x
+        return [ x for x in self.fields if not issubclass(x, readonly_field) ]
 
 
     @thingy_lazy_property
     def visible_fields(self):
-        return [ x for x in self.fields if issubclass(x, input_field) ]
+        return [ x for x in self.fields if issubclass(x, readonly_field) ]
 
 
     def first_field(self):
