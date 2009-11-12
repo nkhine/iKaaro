@@ -49,8 +49,8 @@ from views_new import ProxyNewInstance
 class NotFoundView(STLView):
     template = 'root/not_found.xml'
 
-    def get_namespace(self, resource, context):
-        return {'uri': str(context.uri)}
+    def uri(self):
+        return str(self.context.uri)
 
 
 class ForbiddenView(STLView):
