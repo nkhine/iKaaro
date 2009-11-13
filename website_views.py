@@ -41,7 +41,6 @@ from autoform import AutoForm
 import globals
 from messages import MSG_NEW_RESOURCE
 from registry import get_resource_class
-from views import SearchForm
 from views_new import ProxyNewInstance
 
 
