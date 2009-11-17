@@ -63,7 +63,7 @@ class status_field(choice_field):
 
 class Event_NewInstance(NewInstanceByDate):
 
-    title = title_field(required=True, value=None)
+    title = title_field(required=True, value=u'')
 
     date = None
 
@@ -105,7 +105,7 @@ class Event_NewInstance(NewInstanceByDate):
 class Event_Edit(AutoForm):
 
     access = 'is_allowed_to_edit'
-    title = MSG(u'Edit event')
+    view_title = MSG(u'Edit event')
 
 
     title = title_field(required=True)
