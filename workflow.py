@@ -17,7 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # Import from itools
-from itools.core import freeze
+from itools.core import freeze, merge_dicts
 from itools.datatypes import Enumerate, String
 from itools.gettext import MSG
 from itools.workflow import Workflow, WorkflowAware as BaseWorkflowAware
@@ -25,6 +25,7 @@ from itools.xml import XMLParser
 
 # Import from ikaaro
 from autoform import SelectWidget
+from resource_ import DBResource
 
 
 
@@ -37,7 +38,7 @@ class StateEnumerate(Enumerate):
         states = resource.workflow.states
         state = resource.get_state()
 
-        ac = resource.get_access_control()
+        ac = resource.access_control
         user = self.context.user
         options = [
             {'name': name, 'value': states[trans.state_to].metadata['title']}
@@ -96,18 +97,18 @@ workflow.set_initstate('private')
 
 
 
-class WorkflowAware(BaseWorkflowAware):
+class WorkflowAware(DBResource, BaseWorkflowAware):
 
     class_version = '20090122'
     workflow = workflow
 
 
-    class_schema = freeze({
+    class_schema = merge_dicts(
+        DBResource.class_schema,
         # Metadata
-        'state': String(source='metadata'),
+        state=String(source='metadata'),
         # Other
-        'workflow_state': String(stored=True, indexed=True),
-        })
+        workflow_state=String(stored=True, indexed=True))
 
 
     def get_workflow_state(self):
@@ -121,17 +122,33 @@ class WorkflowAware(BaseWorkflowAware):
         self.set_property('state', value)
 
 
-    # XXX itools.workflow API
-    workflow_state = property(get_workflow_state)
+    # FIXME We redefine the itools.workflow.WorkflowAware API because that
+    # class is not thingy
+    def get_state(self):
+        statename = self.get_workflow_state()
+        return self.workflow.states.get(statename)
 
 
+    def init_resource(self, **kw):
+        super(WorkflowAware, self).init_resource(**kw)
 
-def get_workflow_preview(resource, context):
-    if not isinstance(resource, WorkflowAware):
-        return None
-    statename = resource.get_statename()
-    state = resource.get_state()
-    msg = state['title'].gettext().encode('utf-8')
-    # TODO Include the template in the base table
-    state = '<span class="wf-%s">%s</span>' % (statename, msg)
-    return XMLParser(state)
+        # Workflow State (default)
+        if kw.get('state') is None:
+            datatype = self.get_property_datatype('state')
+            state = datatype.get_default()
+            if state is None:
+                state  = self.workflow.initstate
+            self.metadata._set_property('state', state)
+
+
+    ########################################################################
+    # User Interface
+    ########################################################################
+    def get_workflow_preview(self):
+        statename = self.get_workflow_state()
+        state = self.get_state()
+        msg = state['title'].gettext().encode('utf-8')
+        # TODO Include the template in the base table
+        state = '<span class="wf-%s">%s</span>' % (statename, msg)
+
+        return XMLParser(state)

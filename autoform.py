@@ -71,7 +71,7 @@ class PathSelectorWidget(object):
             if value:
                 resource = context.resource.get_resource(value, soft=True)
                 if resource:
-                    workflow_state = get_workflow_preview(resource, context)
+                    return resource.get_workflow_preview()
 
         return {
             'type': self.type,
