@@ -32,7 +32,7 @@ class Multilingual(DBResource):
 
 
     def init_resource(self, body=None, filename=None, language=None, **kw):
-        DBResource.init_resource(self, filename=filename, **kw)
+        super(Multilingual, self).init_resource(filename=filename, **kw)
         if body:
             handler = self.class_handler(string=body)
             extension = handler.class_extension
