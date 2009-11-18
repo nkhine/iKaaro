@@ -55,6 +55,8 @@ class File_NewInstance(NewInstance):
     name = None
     file = file_field(required=True, size=35, title=MSG(u'File'))
 
+    field_names = ['file', 'title', 'path']
+
 
     @thingy_lazy_property
     def new_resource_name(self):
@@ -68,16 +70,18 @@ class File_NewInstance(NewInstance):
         if title:
             return title
 
-        filename, mimetype, body = self.file.value
+        filename = self.file.filename
         name, type, language = FileName.decode(filename)
         return name
 
 
     def action(self):
-        filename, mimetype, body = self.file.value
+        filename = self.file.filename
         kk, type, language = FileName.decode(filename)
 
         # Web Pages are first class citizens
+        mimetype = self.file.mimetype
+        body = self.file.body
         if mimetype == 'text/html':
             body = stream_to_str_as_xhtml(HTMLParser(body))
             class_id = 'webpage'
@@ -88,7 +92,6 @@ class File_NewInstance(NewInstance):
         cls = get_resource_class(class_id)
 
         # Multilingual resources, find out the language
-        resource = self.resource
         context = self.context
         if issubclass(cls, Multilingual):
             if language is None:
@@ -105,7 +108,8 @@ class File_NewInstance(NewInstance):
             kw['language'] = language
         else:
             kw['extension'] = type
-        child = resource.make_resource(name, cls, body=body, **kw)
+        container = self.get_container()
+        child = container.make_resource(name, cls, body=body, **kw)
 
         # The title
         title = self.title.value.strip()
