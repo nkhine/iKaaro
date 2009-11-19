@@ -25,7 +25,7 @@ from itools.datatypes import Boolean, Enumerate, String
 from itools.gettext import MSG
 from itools.http import get_context
 from itools.i18n import get_language_name, get_languages
-from itools.web import STLView, STLForm, INFO, ERROR
+from itools.web import stl_view, INFO, ERROR
 from itools.web import boolean_field, choice_field, input_field
 from itools.web import multiple_choice_field, textarea_field
 
@@ -98,7 +98,7 @@ class ControlPanel(IconsView):
 
 
 
-class CPEditVirtualHosts(STLForm):
+class CPEditVirtualHosts(stl_view):
 
     access = 'is_admin'
     view_title = MSG(u'Virtual Hosts')
@@ -128,7 +128,7 @@ class CPEditVirtualHosts(STLForm):
 
 
 
-class CPEditSecurityPolicy(STLForm):
+class CPEditSecurityPolicy(stl_view):
 
     access = 'is_allowed_to_edit'
     view_title = MSG(u'Security Policy')
@@ -214,7 +214,7 @@ class CPEditContactOptions(DBResource_Edit):
 
 
 
-class CPBrokenLinks(STLView):
+class CPBrokenLinks(stl_view):
 
     access = 'is_admin'
     view_title = MSG(u'Broken Links')
@@ -277,7 +277,7 @@ class language_field(choice_field):
 
 
 
-class CPEditLanguages(STLForm):
+class CPEditLanguages(stl_view):
 
     access = 'is_admin'
     view_title = MSG(u'Languages')

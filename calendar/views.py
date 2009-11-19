@@ -31,7 +31,7 @@ from itools.http import get_context
 from itools.ical import Time
 from itools.stl import stl
 from itools.uri import get_reference
-from itools.web import BaseView, STLForm, STLView, INFO, ERROR
+from itools.web import view, stl_view, INFO, ERROR
 from itools.web import file_field
 from itools.xapian import AndQuery, PhraseQuery, RangeQuery
 
@@ -69,7 +69,7 @@ days = {
 
 
 
-class TimetablesForm(STLForm):
+class TimetablesForm(stl_view):
 
     access = 'is_allowed_to_edit'
     title = MSG(u'Timetables')
@@ -167,7 +167,7 @@ class TimetablesForm(STLForm):
 
 
 
-class CalendarView(STLView):
+class CalendarView(stl_view):
 
     styles = ['/ui/calendar/style.css']
     add_icon = '/ui/icons/16x16/add.png'
@@ -802,7 +802,7 @@ class DailyView(CalendarView):
 
 
 
-class Calendar_Import(STLForm):
+class Calendar_Import(stl_view):
 
     access = 'is_allowed_to_edit'
     title = MSG(u'Import')
@@ -833,7 +833,7 @@ class Calendar_Import(STLForm):
 
 
 
-class Calendar_Export(BaseView):
+class Calendar_Export(view):
 
     access = 'is_allowed_to_view'
 

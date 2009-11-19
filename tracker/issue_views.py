@@ -24,7 +24,7 @@
 from itools.datatypes import Boolean, Unicode, XMLContent
 from itools.gettext import MSG
 from itools.i18n import format_datetime
-from itools.web import STLForm, STLView
+from itools.web import stl_view
 from itools.xml import XMLParser
 
 # Import from ikaaro
@@ -56,7 +56,7 @@ class IssueTrackerMenu(ContextMenu):
 ###########################################################################
 # Views
 ###########################################################################
-class Issue_Edit(STLForm):
+class Issue_Edit(stl_view):
 
     access = 'is_allowed_to_edit'
     title = MSG(u'Edit Issue')
@@ -78,7 +78,7 @@ class Issue_Edit(STLForm):
 
 
     def get_namespace(self, resource, context):
-        namespace = STLForm.get_namespace(self, resource, context)
+        namespace = super(Issue_Edit, self).get_namespace(resource, context)
 
         # The first lines are very much the same of the add issue form
         tracker = resource.get_parent()
@@ -118,7 +118,7 @@ class Issue_Edit(STLForm):
 
 
 
-class Issue_History(STLView):
+class Issue_History(stl_view):
 
     access = 'is_allowed_to_view'
     title = MSG(u'History')
