@@ -21,7 +21,6 @@
 # Import from itools
 from itools.gettext import MSG
 from itools.handlers import Folder as FolderHandler
-from itools.http import get_context
 from itools.uri import Path
 from itools.web import view
 
@@ -104,7 +103,7 @@ class Folder(DBResource):
         resource = self.get_resource(name)
         resource.init_resource(**kw)
         # Ok
-        get_context().add_resource(resource)
+        self.context.add_resource(resource)
         return resource
 
 
@@ -119,31 +118,6 @@ class Folder(DBResource):
         folder = self.handler
         return [ x[:-9] for x in folder.get_handler_names()
                  if x[-9:] == '.metadata' ]
-
-
-    def _get_resource(self, name):
-        # Look for the resource
-        folder = self.handler
-        try:
-            metadata = folder.get_handler('%s.metadata' % name)
-        except LookupError:
-            return None
-
-        # Format (class id)
-        format = metadata.format
-
-        # File or folder
-        fs = metadata.database.fs
-        key = fs.resolve2(folder.key, name)
-        if fs.exists(key):
-            is_file = fs.is_file(key)
-        else:
-            # FIXME This is just a guess, it may fail.
-            is_file = '/' in format
-
-        # Ok
-        cls = get_resource_class(format, is_file=is_file)
-        return cls(metadata)
 
 
     def _resolve_source_target(self, source_path, target_path):
@@ -202,7 +176,7 @@ class Folder(DBResource):
 
         # Events, add
         resource = self.get_resource(target_path)
-        get_context().add_resource(resource)
+        self.context.add_resource(resource)
 
 
     def move_resource(self, source_path, target_path):
@@ -230,7 +204,7 @@ class Folder(DBResource):
         # Events, remove
         database = self.metadata.database
         new_path = self.get_canonical_path().resolve2(target_path)
-        database.move_resource(source, new_path)
+        self.context.database.move_resource(source, new_path)
 
         # Move the metadata
         folder = self.handler
