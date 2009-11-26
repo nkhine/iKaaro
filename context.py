@@ -19,7 +19,8 @@ from itools.core import get_abspath, lazy, merge_dicts
 from itools.handlers import ConfigFile, ro_database
 from itools.uri import Path
 from itools.web import WebContext, lock_body
-from itools.xapian import AllQuery, NotQuery, PhraseQuery, OrQuery, StartQuery
+from itools.xapian import AllQuery, AndQuery, NotQuery, PhraseQuery, OrQuery
+from itools.xapian import StartQuery
 from itools.xapian import SearchResults
 
 # Import from ikaaro
@@ -308,10 +309,26 @@ class CMSContext(WebContext):
         return resource
 
 
-    def remove_resource(self, resource):
+    def del_resource(self, path, soft=False):
+        # (1) Get the resource to remove
+        resource = self.get_resource(path, soft=soft)
+        if soft and resource is None:
+            return
+
+        # (2) Check referencial-integrity
+        database = self.database
+        # FIXME Check sub-resources too
+        physical_path = str(resource.get_physical_path())
+        query_base_path = get_base_path_query(path)
+        query = AndQuery(PhraseQuery('links', path), NotQuery(query_base_path))
+        results = database.catalog.search(query)
+        if len(results):
+            message = 'cannot delete, resource "%s" is referenced' % path
+            raise ConsistencyError, message
+
+        # (3) Update cache
         old2new = self.cache_old2new
         new2old = self.cache_new2old
-
         if issubclass(resource, Folder):
             for x in resource.traverse_resources():
                 path = str(x.path)
@@ -323,6 +340,14 @@ class CMSContext(WebContext):
             old2new[path] = None
             new2old.pop(path, None)
             del self.cache[path]
+
+        # (4) Remove
+        fs = database.fs
+        for handler in resource.get_handlers():
+            # Skip empty folders and phantoms
+            if fs.exists(handler.key):
+                database.del_handler(handler.key)
+        database.del_handler(resource.metadata.key)
 
 
     def add_resource(self, resource):

@@ -24,7 +24,6 @@ from itools.handlers import Folder as FolderHandler
 from itools.http import get_context
 from itools.uri import Path
 from itools.web import view
-from itools.xapian import AndQuery, NotQuery, PhraseQuery
 
 # Import from ikaaro
 from exceptions import ConsistencyError
@@ -35,7 +34,6 @@ from metadata import Metadata
 from registry import register_resource_class, get_resource_class
 from registry import get_document_types
 from resource_ import DBResource
-from utils import get_base_path_query
 
 
 
@@ -146,35 +144,6 @@ class Folder(DBResource):
         # Ok
         cls = get_resource_class(format, is_file=is_file)
         return cls(metadata)
-
-
-    def del_resource(self, name, soft=False):
-        context = get_context()
-        resource = self.get_resource(name, soft=soft)
-        if soft and resource is None:
-            return
-
-        # Check referencial-integrity
-        catalog = context.database.catalog
-        # FIXME Check sub-resources too
-        path = str(resource.get_physical_path())
-        query_base_path = get_base_path_query(path)
-        query = AndQuery(PhraseQuery('links', path),
-                         NotQuery(query_base_path))
-        results = catalog.search(query)
-        if len(results):
-            message = 'cannot delete, resource "%s" is referenced' % path
-            raise ConsistencyError, message
-
-        # Events, remove
-        context.remove_resource(resource)
-        # Remove
-        fs = database.fs
-        for handler in resource.get_handlers():
-            # Skip empty folders and phantoms
-            if fs.exists(handler.key):
-                database.del_handler(handler.key)
-        self.handler.del_handler('%s.metadata' % name)
 
 
     def _resolve_source_target(self, source_path, target_path):
