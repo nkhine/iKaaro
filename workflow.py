@@ -122,13 +122,6 @@ class WorkflowAware(DBResource, BaseWorkflowAware):
         self.set_property('state', value)
 
 
-    # FIXME We redefine the itools.workflow.WorkflowAware API because that
-    # class is not thingy
-    def get_state(self):
-        statename = self.get_workflow_state()
-        return self.workflow.states.get(statename)
-
-
     def init_resource(self, **kw):
         super(WorkflowAware, self).init_resource(**kw)
 
