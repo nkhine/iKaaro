@@ -24,17 +24,18 @@
 from itools.datatypes import Boolean, Unicode, XMLContent
 from itools.gettext import MSG
 from itools.i18n import format_datetime
-from itools.web import stl_view
+from itools.web import stl_view, boolean_field, file_field, textarea_field
 from itools.xml import XMLParser
 
 # Import from ikaaro
 from ikaaro.comments import CommentsView
+from ikaaro.fields import title_field
 from ikaaro.messages import MSG_CHANGES_SAVED
 from ikaaro.views import ContextMenu
 
 # Local import
-from ikaaro.cc import UsersList
-from datatypes import get_issue_fields
+from datatypes import product_choice_field, tracker_choice_field
+from datatypes import users_choice_field
 
 
 ###########################################################################
@@ -66,9 +67,22 @@ class Issue_Edit(stl_view):
     scripts = ['/ui/tracker/tracker.js']
 
 
-    def get_schema(self, resource, context):
-        tracker = resource.get_parent()
-        return get_issue_fields(tracker)
+    title = title_field(required=True)
+    comment = textarea_field()
+    file = file_field()
+    product = tracker_choice_field(required=True)
+    module = product_choice_field()
+    version = product_choice_field()
+    type = tracker_choice_field(required=True)
+    state = tracker_choice_field(required=True)
+    priority = tracker_choice_field()
+    assigned_to = users_choice_field(excluded_roles=('guests',))
+    cc_list = users_choice_field(multiple=True)
+
+
+    field_names = [
+        'title', 'comment', 'file', 'product', 'module', 'version', 'type',
+        'state', 'priority', 'assigned_to', 'cc_list']
 
 
     def get_value(self, resource, context, name, datatype):

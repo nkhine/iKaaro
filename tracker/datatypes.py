@@ -15,106 +15,85 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # Import from itools
+from itools.core import thingy_lazy_property
+from itools.core import OrderedDict
 from itools.datatypes import Enumerate, Unicode
 from itools.http import get_context
-
-# Import from ikaaro
-from ikaaro.cc import UsersList
-from ikaaro.datatypes import FileDataType
+from itools.web import choice_field
 
 
 
-class TrackerList(Enumerate):
+class tracker_choice_field(choice_field):
 
-    @staticmethod
-    def decode(value):
-        if not value:
-            return None
-        return int(value)
+    @thingy_lazy_property
+    def values(self):
+        tracker = self.view.resource.get_site_root().get_resource('tracker')
+        table = tracker.get_resource(self.name).handler
 
+        values = OrderedDict()
+        for record in table.get_records_in_order():
+            title = table.get_record_value(record, 'title')
+            values[record.id] = {'title': title}
 
-    @staticmethod
-    def encode(value):
-        if value is None:
-            return ''
-        return str(value)
-
-
-    def get_options(cls):
-        elements = cls.tracker.get_resource(cls.element).handler
-        return [{'name': record.id,
-                 'value': elements.get_record_value(record, 'title')}
-                for record in elements.get_records_in_order()]
+        return values
 
 
 
-class ProductInfoList(Enumerate):
+class product_choice_field(choice_field):
 
-    @staticmethod
-    def decode(value):
-        if not value:
-            return None
-        return int(value)
-
-
-    @staticmethod
-    def encode(value):
-        if value is None:
-            return ''
-        return str(value)
-
-
-    def get_options(cls):
-        tracker = cls.tracker
+    @thingy_lazy_property
+    def values(self):
+        tracker = self.view.resource.get_site_root().get_resource('tracker')
         products = tracker.get_resource('product').handler
-        elements = tracker.get_resource(cls.element).handler
+        elements = tracker.get_resource(self.name).handler
 
-        options = []
+        values = OrderedDict()
         for record in elements.get_records_in_order():
-            title = elements.get_record_value(record, 'title')
-            product_id = elements.get_record_value(record, 'product')
-
             # Product title
+            product_id = elements.get_record_value(record, 'product')
             if product_id is None:
                 continue
+
             product_id = int(product_id)
             product_record = products.get_record(product_id)
             product_title = products.get_record_value(product_record, 'title')
 
-            options.append({'name': record.id,
-                            'value': '%s - %s' % (product_title, title)})
-        return options
+            title = elements.get_record_value(record, 'title')
+            values[record.id] = {'title': '%s - %s' % (product_title, title)}
+
+        return values
 
 
-    def is_valid(cls, name):
-        # Get the product number
-        product =  get_context().get_form_value('product')
-        if product is None:
-            return True
-        product = int(product)
+#   def is_valid(cls, name):
+#       # Get the product number
+#       product =  get_context().get_form_value('product')
+#       if product is None:
+#           return True
+#       product = int(product)
 
-        # Match our choice ?
-        choice = int(name)
-        elements = cls.tracker.get_resource(cls.element).handler
-        record = elements.get_record(choice)
-        product_id = int(elements.get_record_value(record, 'product'))
+#       # Match our choice ?
+#       choice = int(name)
+#       elements = cls.tracker.get_resource(cls.element).handler
+#       record = elements.get_record(choice)
+#       product_id = int(elements.get_record_value(record, 'product'))
 
-        return product_id == product
+#       return product_id == product
 
 
 
-def get_issue_fields(tracker):
-    return {
-        'title': Unicode(mandatory=True),
-        'product': TrackerList(element='product', tracker=tracker,
-                               mandatory=True),
-        'module': ProductInfoList(element='module', tracker=tracker),
-        'version': ProductInfoList(element='version', tracker=tracker),
-        'type': TrackerList(element='type', tracker=tracker, mandatory=True),
-        'state': TrackerList(element='state', tracker=tracker, mandatory=True),
-        'priority': TrackerList(element='priority', tracker=tracker),
-        'assigned_to': UsersList(resource=tracker, excluded_roles=('guests',)),
-        'cc_list': UsersList(resource=tracker, multiple=True),
-        'comment': Unicode,
-        'file': FileDataType}
+class users_choice_field(choice_field):
 
+    excluded_roles = None
+
+    @thingy_lazy_property
+    def values(self):
+        users = self.view.resource.get_site_root().get_resource('users')
+
+        values = OrderedDict()
+        for user in users.get_resources():
+            if excluded_roles and user.get_value('role') in excluded_roles:
+                continue
+            values[user.get_name()] = {'title': user.get_title()}
+
+        values.sort(key=itemgetter('title'))
+        return values
