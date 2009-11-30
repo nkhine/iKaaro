@@ -41,7 +41,7 @@ class UsersList(Enumerate):
                     usernames = site_root.get_property(rolename)
                     members.update(usernames)
         else:
-            members = site_root.get_users()
+            members = site_root.get_usernames()
 
         users = site_root.get_resource('/users')
         options = []
@@ -87,7 +87,7 @@ class SubscribeForm(STLForm):
         site_root = resource.get_site_root()
         subscribed = []
         not_subscribed = []
-        for name in site_root.get_users():
+        for name in site_root.get_usernames():
             if name == username:
                 continue
             user = {'name': name, 'title': root.get_user_title(name)}
