@@ -465,8 +465,8 @@ class CMSContext(WebContext):
             if user else 'nobody <>')
         git_msg = getattr(self, 'git_message', None)
         git_msg = (
-            git_msg.encode('utf-8')
-            if git_msg else "%s %s" % (self.method, self.uri))
+            git_msg.encode('utf-8') if git_msg else
+            "%s %s" % (self.soup_message.get_method(), self.uri))
 
         # Save
         data = git_author, git_date, git_msg, docs_to_index, docs_to_unindex
