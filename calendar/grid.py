@@ -353,8 +353,7 @@ def render_namespace(items, times, with_new_url):
 
 def get_grid_data(data, grid, start_date=None, templates=(None, None),
                   with_new_url=True, add_icon=None):
-    """
-    Build final namespace from data and grid to be used in gridlayout
+    """Build final namespace from data and grid to be used in gridlayout
     templates.
     """
     template, template_fd = templates

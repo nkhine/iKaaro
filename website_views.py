@@ -31,7 +31,6 @@ from itools.datatypes import Email, Enumerate, String, Unicode
 from itools.fs import lfs
 from itools.gettext import MSG
 from itools.stl import stl
-from itools.fs import lfs
 from itools.web import stl_view, INFO, ERROR, FormError
 from itools.web import choice_field, email_field, text_field, textarea_field
 from itools.xapian import PhraseQuery, OrQuery, AndQuery, split_unicode

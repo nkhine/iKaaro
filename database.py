@@ -126,9 +126,6 @@ class Database(ReadOnlyDatabase, GitDatabase):
         return catalog
 
 
-    #######################################################################
-    # Git API
-    #######################################################################
     def get_last_revision(self, files):
         # The git cache only works on read-only mode
         revisions = self.get_revisions(files, 1)

@@ -65,21 +65,6 @@ class Folder(DBResource):
         return [metadata]
 
 
-    #######################################################################
-    # API
-    #######################################################################
-    def make_resource(self, name, cls, format=None, **kw):
-        # Make the metadata
-        metadata = Metadata(cls=cls, format=format)
-        self.handler.set_handler('%s.metadata' % name, metadata)
-        # Initialize
-        resource = self.get_resource(name)
-        resource.init_resource(**kw)
-        # Ok
-        get_context().database.add_resource(resource)
-        return resource
-
-
     ########################################################################
     # Indexing
     ########################################################################
@@ -95,9 +80,9 @@ class Folder(DBResource):
     #######################################################################
     # API
     #######################################################################
-    def make_resource(self, name, cls, **kw):
+    def make_resource(self, name, cls, format=None, **kw):
         # Make the metadata
-        metadata = Metadata(cls=cls)
+        metadata = Metadata(cls=cls, format=format)
         self.handler.set_handler('%s.metadata' % name, metadata)
         # Initialize
         resource = self.get_resource(name)

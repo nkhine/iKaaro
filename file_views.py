@@ -52,10 +52,8 @@ class File_NewInstance(NewInstance):
     submit_value = MSG(u'Upload')
 
 
-    name = None
     file = file_field(required=True, size=35, title=MSG(u'File'))
-
-    field_names = ['file', 'title', 'path']
+    field_names = ['file', 'title', 'name', 'path']
 
 
     @thingy_lazy_property

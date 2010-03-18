@@ -22,7 +22,6 @@
 from itools.core import thingy_lazy_property
 from itools.datatypes import Date, Enumerate, Boolean
 from itools.gettext import MSG
-from itools.http import get_context
 from itools.stl import make_stl_template
 from itools.web import stl_view
 from itools.web import boolean_field, choice_field, hidden_field
@@ -50,38 +49,26 @@ class PathSelectorWidget(object):
     action = 'add_link'
     display_workflow = True
 
-    template = list(XMLParser(
-    """
+    template = make_stl_template("""
     <input type="text" id="selector-${id}" size="${size}" name="${name}"
       value="${value}" />
     <input id="selector-button-${id}" type="button" value="..."
       name="selector_button_${name}"
       onclick="popup(';${action}?target_id=selector-${id}&amp;mode=input', 620, 300);"/>
-    ${workflow_state}
-    """, stl_namespaces))
+    ${workflow_state}""")
 
 
     def workflow_state(self):
-        from ikaaro.workflow import get_workflow_preview
-
-        workflow_state = None
         if self.display_workflow:
-            context = get_context()
+            value = self.value
             if type(value) is not str:
-                value = datatype.encode(value)
+                value = self.datatype.encode(value)
             if value:
-                resource = context.resource.get_resource(value, soft=True)
+                resource = self.resource.get_resource(value, soft=True)
                 if resource:
                     return resource.get_workflow_preview()
 
-        return {
-            'type': self.type,
-            'name': self.name,
-            'id': self.id,
-            'value': value,
-            'size': self.size,
-            'action': self.action,
-            'workflow_state': workflow_state}
+        return None
 
 
 
@@ -91,8 +78,7 @@ class ImageSelectorWidget(PathSelectorWidget):
     width = 128
     height = 128
 
-    template = list(XMLParser(
-    """
+    template = make_stl_template("""
     <input type="text" id="selector-${id}" size="${size}" name="${name}"
       value="${value}" />
     <input id="selector-button-${id}" type="button" value="..."
@@ -100,13 +86,7 @@ class ImageSelectorWidget(PathSelectorWidget):
       onclick="popup(';${action}?target_id=selector-${id}&amp;mode=input', 620, 300);" />
     ${workflow_state}
     <br/>
-    <img src="${value}/;thumb?width=${width}&amp;height=${height}" stl:if="value"/>
-    """, stl_namespaces))
-
-
-    def get_namespace(self, datatype, value):
-        return merge_dicts(PathSelectorWidget.get_namespace(self, datatype, value),
-                           width=self.width, height=self.height)
+    <img src="${value}/;thumb?width=${width}&amp;height=${height}" stl:if="value"/>""")
 
 
 

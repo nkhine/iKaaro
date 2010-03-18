@@ -90,11 +90,12 @@ class CMSContext(WebContext):
         site_root = self.site_root
         if from_addr is None:
             user = self.user
-            if user is not None:
-                from_addr = user.get_title(), user.get_property('email')
-            elif site_root.get_property('emails_from_addr'):
-                user_name = site_root.get_property('emails_from_addr')
-                user = self.get_resource('/users/%s' % user_name)
+            if user is None:
+                username = site_root.get_property('emails_from_addr')
+                if username:
+                    user = self.get_user_by_name(username)
+
+            if user:
                 from_addr = user.get_title(), user.get_property('email')
             else:
                 from_addr = self.server.smtp_from
@@ -367,13 +368,12 @@ class CMSContext(WebContext):
                 error = 'cannot move a resource that has been removed'
                 raise ValueError, error
 
-            # Update cache
-            self.cache[target_path] = self.cache.pop(source_path)
             # Update double dict
             source_path = new2old.pop(source_path, source_path)
             if source_path:
                 old2new[source_path] = target_path
             new2old[target_path] = source_path
+            del self.cache[source_path]
 
         old_path = source.path
         if issubclass(source, Folder):
@@ -443,12 +443,12 @@ class CMSContext(WebContext):
 
         # 2. Documents to unindex
         docs_to_unindex = self.cache_old2new.keys()
-        self.cache_old2new.clear()
 
         # 3. Index
         git_date = self.timestamp
         user = self.user
         userid = user.get_name() if user else None
+        docs_to_index = []
         for path in self.cache_new2old:
             resource = cache[path]
             if git_date:
@@ -471,6 +471,8 @@ class CMSContext(WebContext):
         data = git_author, git_date, git_msg, docs_to_index, docs_to_unindex
         self.database.save_changes(data)
         self.database._cleanup()
+        self.cache_old2new.clear()
+        self.cache_new2old.clear()
 
 
     #######################################################################
