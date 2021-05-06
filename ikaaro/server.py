@@ -52,7 +52,7 @@ from itools.database import make_database, get_register_fields
 from itools.datatypes import Boolean, Email, Integer, String, Tokens
 from itools.fs import lfs
 from itools.handlers import ConfigFile
-from itools.i18n import init_language_selector
+# from itools.i18n import init_language_selector
 from itools.log import Logger, register_logger
 from itools.log import DEBUG, INFO, WARNING, ERROR, FATAL
 from itools.log import log_error, log_warning, log_info
@@ -614,7 +614,7 @@ class Server(object):
 
     def listen(self, address, port):
         # Language negotiation
-        init_language_selector(select_language)
+        # init_language_selector(select_language)
         # Say hello
         msg = 'Listing at port %s' % port
         log_info(msg)
@@ -631,8 +631,8 @@ class Server(object):
             (address or '', port), application,
             handler_class=ServerHandler,
             log=self.access_log)
-        gevent_signal(SIGTERM, self.stop)
-        gevent_signal(SIGINT, self.stop)
+        # gevent_signal(SIGTERM, self.stop)
+        # gevent_signal(SIGINT, self.stop)
         if self.profile:
             runctx("self.wsgi_server.serve_forever()", globals(), locals(), self.profile)
         else:
